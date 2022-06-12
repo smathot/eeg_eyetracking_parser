@@ -4,18 +4,18 @@ Copyright (2022) Hermine Berberyan, Wouter Kruijne, Sebastiaan Mathôt, Ana Vilo
 
 ## About
 
-A Python module for reading concurrently recorded EEG and eye-tracking data, and parsing these into convenient data structures for further analysis. For this to work, several assumptions need to be met, as described under [Assumptions](#assumptions). At present, this module is largely for internal use, and focused on our own recording environment.
+A Python module for reading concurrently recorded EEG and eye-tracking data, and parsing this data into convenient objects for further analysis. For this to work, several assumptions need to be met, as described under [Assumptions](#assumptions). At present, this module is largely for internal use, and focused on our own recording environment.
 
 Key features:
 
-- Experimental variables (such as conditions) from the eye tracker is used as metadata for the EEG analysis.
-- Gaze and pupil data is added as channels to the EEG data. (But for most purposes you wont use this for analyzing this data.)
+- Experimental variables (such as conditions) from the eye-tracking data are used as metadata for the EEG analysis.
+- Gaze and pupil data is added as channels to the EEG data. (But for most purposes you wont use this for analyzing this eye data, instead using the `DataMatrix`.)
 - Blinks and saccades from the eye-tracking data are added as BAD annotations to the EEG data.
 
 
 ## Example
 
-Parse the data and plot it for visualization.
+Parse the data.
 
 ```python
 import eeg_eyetracking_parser as eet
@@ -24,7 +24,7 @@ raw, events, metadata, dm = eet.read_subject(2)
 raw.plot()
 ```
 
-Plot the voltage across four occipital electrodes locked to cue onset for three seconds.
+Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`.
 
 ```python
 import mne
@@ -42,7 +42,7 @@ for ecc in ('near', 'medium', 'far'):
 plt.legend()
 ```
 
-Plot pupil size during the same period. We use the `dm` object rather than the `PupilSize` channel, because this has been preprocessed, and the `tst.plot()` deals better with missing data than then MNE plotting functions.
+Plot pupil size during the same period. We use the `dm` object rather than the `PupilSize` channel for plotting pupil data, because the data in this object has been preprocessed, and `DataMatrix` deals more gracefully with missing data than MNE does.
 
 ```python
 from datamatrix import series as srs
@@ -66,11 +66,11 @@ plt.xlim(0, 300)
 ### Data format
 
 - EEG data should be in BrainVision format (`.vhdr`), recorded at 1000 Hz
-- Eye-tracking data should be EyeLink format (`.eeg`), recorded monocularly at 1000 Hz
+- Eye-tracking data should be EyeLink format (`.edf`), recorded monocularly at 1000 Hz
 
 ### File and folder structure
 
-Files should be organized following [BIDS.
+Files should be organized following [BIDS](https://bids-specification.readthedocs.io/).
 
 ```
 # Container folder for all data
@@ -92,21 +92,21 @@ data/
 
 ### Trigger codes
 
-Triggers are sent to indicate the start of a trial and the onset of a relevant event. This information is sent both to the EEG acquisition software, and to the eye tracker. Condition information and other variables are only sent to the eye tracker, and later merged as metadata with the EEG recording.
-
-The start of each trial is indicated by a counter that starts at 128 for the first trial, and wraps around after 255, such that trial 129 is indicated again by 128. This trigger does not need to be sent to the eye tracker, which uses its own `start_trial` message. 
+The start of each trial is indicated by a counter that starts at 128 for the first trial, and wraps around after 255, such that trial 129 is indicated again by 128. This trigger does not need to be sent to the eye tracker, which uses its own `start_trial` message. A temporal offset between the `start_trial` message of the eye tracker and the start-trial trigger of the EEG is ok, and will be compensated for during parsing.
 
 ```python
 EE.PulseLines(128 + trialid % 128, 10) 
 ```
 
-The onset of each epoch is indicated by a counter that starts at 1. Say that the target presentation is the second epoch of the trial, then this would look as in the example below. This trigger needs to be sent to both the EEG and the eye tracker at the exact same moment.
+The onset of each epoch is indicated by a counter that starts at 1 for the first epoch, and then increases for subsequent epochs. In other words, if the target presentation is the second epoch of the trial, then this would correspond to trigger 2 as in the example below. This trigger needs to be sent to both the EEG and the eye tracker at the exact same moment (a temporal offset is *not* ok).
 
 ```python
 target_trigger = 2
 eyetracker.log(f'start_phase {target_trigger}')
 EE.PulseLines(target_trigger, 10)
 ```
+
+Triggers should only be used for temporal information. Conditions are only logged in the eye-tracking data.
 
 
 ## License
