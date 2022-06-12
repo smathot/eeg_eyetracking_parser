@@ -54,7 +54,7 @@ def trial_trigger(events):
 
 
 def read_subject(subject_nr, folder='data/', trigger_parser=None,
-                 eye_kwargs={}):
+                 eeg_margin=30, eye_kwargs={}):
     """Reads EEG, eye-tracking, and behavioral data for a single participant.
     This data should be organized according to the BIDS specification.
     
@@ -78,6 +78,10 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
         specified, triggers are assumed to be encoded by the OpenVibe
         acquisition software and to follow the convention for indicating
         trial numbers and event onsets as described in the readme.
+    eeg_margin: int, optional
+        The number of seconds after the last trigger to keep. The rest of the
+        data will be cropped to save memory (in case long periods of extraneous
+        data were recorded).
     eye_kwargs: dict, optional
         Optional keyword arguments to be passed onto the EyeLink parser. If
         traceprocessor is provided, a default traceprocessor is used with
@@ -94,7 +98,9 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     else:
         subject_path = Path(folder) / Path('sub-{}'.format(subject_nr))
     logger.info(f'reading subject data from {subject_path}')
-    raw, events = _read_eeg_data(subject_path / Path('eeg'), trigger_parser)
+    raw, events = _read_eeg_data(subject_path / Path('eeg'), trigger_parser,
+                                 eeg_margin)
+    # _trim_eeg_data(raw, events, eeg_margin)
     metadata = _read_beh_data(subject_path / Path('beh'))
     eye_path = subject_path / Path('eyetracking')
     dm = _read_eye_data(eye_path, metadata, eye_kwargs)
@@ -194,7 +200,7 @@ def _merge_eye_and_eeg_data(eye_path, raw, events, dm):
     raw.set_annotations(raw.annotations + annotations)
 
 
-def _read_eeg_data(eeg_path, trigger_parser):
+def _read_eeg_data(eeg_path, trigger_parser, margin):
     """Reads eeg data and returns a raw, events tuple. If no eeg data is found,
     None, None is returned.
     """
@@ -204,11 +210,20 @@ def _read_eeg_data(eeg_path, trigger_parser):
     vhdr_path = list(eeg_path.glob('*.vhdr'))[0]
     logger.info('loading eeg data from {vhdr_path}')
     raw = mne.io.read_raw_brainvision(vhdr_path, preload=True)
-    logger.info('creating annotations from events')
+    logger.info('creating events from annotations')
     events = mne.events_from_annotations(raw,
         _parse_triggers if trigger_parser is None else trigger_parser)
+    if margin is not None:
+        end = min(len(raw), events[0][:, 0][-1] / 1000 + margin)
+        logger.info(f'trimming eeg to 0 - {end} s')
+        raw.crop(0, end)
     logger.info('validating events')
     _validate_events(events)
+    logger.info('creating annotations from events')
+    raw.set_annotations(
+        mne.annotations_from_events(
+            events[0],
+            sfreq=raw.info['sfreq']))
     return raw, events
 
 
