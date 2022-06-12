@@ -31,12 +31,15 @@ import mne
 from matplotlib import pyplot as plt
 
 CUE_TRIGGER = 1
+STREAM_TRIGGER = 2
+TARGET_TRIGGER = 3
+RESPONSE_TRIGGER = 4
 CHANNELS = 'O1', 'O2', 'P3', 'P4'
 
+cue_epoch = mne.Epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=-.1,
+                       tmax=3, baseline=(0, 0), metadata=metadata,
+                       picks=CHANNELS)
 for ecc in ('near', 'medium', 'far'):
-    cue_epoch = mne.Epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER),
-                           tmin=-.1, tmax=3, baseline=(0, 0),
-                           metadata=metadata, picks=CHANNELS)
     cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
     plt.plot(cue_evoked.data.mean(axis=0), label=ecc)
 plt.legend()
