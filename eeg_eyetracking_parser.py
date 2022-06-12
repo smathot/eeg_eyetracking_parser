@@ -54,7 +54,8 @@ def trial_trigger(events):
 
 
 def read_subject(subject_nr, folder='data/', trigger_parser=None,
-                 eeg_margin=30, eye_kwargs={}):
+                 eeg_margin=30, min_sacc_dur=10, min_sacc_size=30,
+                 min_blink_dur=10, eye_kwargs={}):
     """Reads EEG, eye-tracking, and behavioral data for a single participant.
     This data should be organized according to the BIDS specification.
     
@@ -82,6 +83,15 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
         The number of seconds after the last trigger to keep. The rest of the
         data will be cropped to save memory (in case long periods of extraneous
         data were recorded).
+    min_sacc_dur: int, optional
+        The minimum duration of a saccade before it is annotated as a
+        BAD_SACCADE.
+    min_sacc_size: int, optional
+        The minimum size of a saccade (in pixels) before it is annotated as a
+        BAD_SACCADE.
+    min_blink_dur: int, optional
+        The minimum duration of a blink before it is annotated as a
+        BAD_BLINK.
     eye_kwargs: dict, optional
         Optional keyword arguments to be passed onto the EyeLink parser. If
         traceprocessor is provided, a default traceprocessor is used with
@@ -105,7 +115,8 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     eye_path = subject_path / Path('eyetracking')
     dm = _read_eye_data(eye_path, metadata, eye_kwargs)
     if dm is not None and raw is not None:
-        _merge_eye_and_eeg_data(eye_path, raw, events, dm)
+        _merge_eye_and_eeg_data(eye_path, raw, events, dm, min_sacc_dur,
+                                min_sacc_size, min_blink_dur)
     if metadata is None and dm is not None:
         metadata = cnv.to_pandas(dm)
     if events is not None and dm is not None:
@@ -116,7 +127,8 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     return raw, events, metadata, dm
 
 
-def _merge_eye_and_eeg_data(eye_path, raw, events, dm):
+def _merge_eye_and_eeg_data(eye_path, raw, events,
+                            dm, min_sacc_dur, min_sacc_size, min_blink_dur):
     """Add the eye data as channels to the EEG data. In addition, add blinks
     and saccades as annotations.
     """
@@ -179,17 +191,30 @@ def _merge_eye_and_eeg_data(eye_path, raw, events, dm):
             if np.isnan(st):
                 break
             dur = et - st
+            if dur < min_blink_dur:
+                continue
             start = st - t0
             onset.append((timestamp + start) / 1000)
             duration.append(dur / 1000)
             description.append('BAD_BLINK')
         # Saccades are deduced through the end of fixation n and the start of
         # fixation n + 1
-        for st, et in zip(row.fixetlist_trial[:-1], row.fixstlist_trial[1:]):
+        for st, sx, sy, et, ex, ey in zip(
+                row.fixetlist_trial[:-1],
+                row.fixxlist_trial[:-1],
+                row.fixylist_trial[:-1],
+                row.fixstlist_trial[1:],
+                row.fixxlist_trial[1:],
+                row.fixylist_trial[1:]):
             if np.isnan(et):
                 break
             dur = et - st
+            if dur < min_sacc_dur:
+                continue
             start = st - t0
+            size = ((sx - ex) ** 2 + (sy - ey) ** 2) ** .5
+            if size < min_sacc_size:
+                continue
             onset.append((timestamp + start) / 1000)
             duration.append(dur / 1000)
             description.append('BAD_SACCADE')
