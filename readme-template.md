@@ -114,76 +114,20 @@ Triggers should only be used for temporal information. Conditions are only logge
 
 ## Function reference
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.epoch&#95;trigger</span>_(events, trigger)_**
+``` { .python silent }
+import sys
+sys.path.append('/home/sebastiaan/git/eeg_eyetracking_parser')
+import eeg_eyetracking_parser as eet
+from npdoc_to_md import render_md_from_obj_docstring
+
+print(render_md_from_obj_docstring(eet.epoch_trigger, 'eeg_eyetracking_parser.epoch_trigger'))
+print('\n\n')
+print(render_md_from_obj_docstring(eet.read_subject, 'eeg_eyetracking_parser.read_subject'))
+print('\n\n')
+print(render_md_from_obj_docstring(eet.trial_trigger, 'eeg_eyetracking_parser.trial_trigger'))
+```
 
 
-Selects a single epoch trigger from a tuple with event information.
-Epoch triggers have values between 1 and 127 (inclusive).
-
-
-#### Parameters
-* events: tuple :  Event information as returned by `read_subject()`.
-* trigger: int :  A trigger code, which is a positive value.
-
-#### Returns
-<b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
-
-
-
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.read&#95;subject</span>_(subject_nr, folder='data/', trigger_parser=None, eeg_margin=30, min_sacc_dur=10, min_sacc_size=30, min_blink_dur=10, eye_kwargs={})_**
-
-
-Reads EEG, eye-tracking, and behavioral data for a single participant.
-This data should be organized according to the BIDS specification.
-
-
-EEG data is assumed to be in BrainVision data format (`.vhdr`, `.vmrk`,
-`.eeg`). Eye-tracking data is assumed to be in EyeLink data format (`.edf`
-or `.asc`). Behavioral data is assumed to be in `.csv` format.
-
-Metadata is taken from the behavioral `.csv` file if present, and from
-the eye-tracking data if not.
-
-#### Parameters
-* subject_nr: int or sr :  The subject number to parse. If an int is passed, the subject number
-	is assumed to be zero-padded to length two (e.g. '01'). If a string
-	is passed, the string is used directly.
-* folder: str, optional :  The folder in which the data is stored.
-* trigger_parser: callable, optional :  A function that converts annotations to events. If no function is
-	specified, triggers are assumed to be encoded by the OpenVibe
-	acquisition software and to follow the convention for indicating
-	trial numbers and event onsets as described in the readme.
-* eeg_margin: int, optional :  The number of seconds after the last trigger to keep. The rest of the
-	data will be cropped to save memory (in case long periods of extraneous
-	data were recorded).
-* min_sacc_dur: int, optional :  The minimum duration of a saccade before it is annotated as a
-	BAD_SACCADE.
-* min_sacc_size: int, optional :  The minimum size of a saccade (in pixels) before it is annotated as a
-	BAD_SACCADE.
-* min_blink_dur: int, optional :  The minimum duration of a blink before it is annotated as a
-	BAD_BLINK.
-* eye_kwargs: dict, optional :  Optional keyword arguments to be passed onto the EyeLink parser. If
-	traceprocessor is provided, a default traceprocessor is used with
-	advanced blink reconstruction enabled and 10x downsampling.
-
-#### Returns
-<b><i>tuple:</i></b>  A raw (EEG data), events (EEG triggers), metadata (a table with
-	experimental variables), eye_dm (eye-tracking data) tuple.
-
-
-
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.trial&#95;trigger</span>_(events)_**
-
-
-Selects all trial triggers from event information. Trial triggers have
-values between 128 and 255 (inclusive).
-
-
-#### Parameters
-* events: tuple :  Event information as returned by `read_subject()`.
-
-#### Returns
-<b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
 
 ## License
 
