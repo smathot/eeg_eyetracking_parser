@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import mne
 from datamatrix import convert as cnv, io
+from datamatrix._datamatrix._seriescolumn import _SeriesColumn
 from eyelinkparser import parse, defaulttraceprocessor
 
 TRIAL_TRIGGERS = list(range(128, 256))
@@ -116,9 +117,9 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     dm = _read_eye_data(eye_path, metadata, eye_kwargs)
     if dm is not None and raw is not None:
         _merge_eye_and_eeg_data(eye_path, raw, events, dm, min_sacc_dur,
-                                min_sacc_size, min_blink_dur)
+                                min_sacc_size, min_blink_dur, eye_kwargs)
     if metadata is None and dm is not None:
-        metadata = cnv.to_pandas(dm)
+        metadata = _dm_to_metadata(dm)
     if events is not None and dm is not None:
         n_trials_eeg = sum(events[0][:, 2] >= 128)
         n_trials_eye = len(dm)
@@ -127,8 +128,17 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     return raw, events, metadata, dm
 
 
+def _dm_to_metadata(dm):
+    """Convert dm to pandas dataframe but remove seriescolumns to save memory.
+    """
+    return cnv.to_pandas(dm[
+        [col for col, name in dm.columns if not isinstance(col, _SeriesColumn)]
+    ])
+
+
 def _merge_eye_and_eeg_data(eye_path, raw, events,
-                            dm, min_sacc_dur, min_sacc_size, min_blink_dur):
+                            dm, min_sacc_dur, min_sacc_size, min_blink_dur,
+                            eye_kwargs):
     """Add the eye data as channels to the EEG data. In addition, add blinks
     and saccades as annotations.
     """
@@ -137,7 +147,12 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     # and without splitting the data into separate epochs. We do this, so that
     # we can merge this big dataset as channels into the EEG data.
     def only_trial(name): return name == 'trial'
-    bigdm = parse(folder=eye_path, trialphase='trial', phasefilter=only_trial)
+    if 'traceprocessor' not in eye_kwargs:
+        logger.info('no traceprocessor specified, using default')
+        eye_kwargs['traceprocessor'] = defaulttraceprocessor(
+            blinkreconstruct=True, mode='advanced')
+    bigdm = parse(folder=eye_path, trialphase='trial', phasefilter=only_trial,
+                  **eye_kwargs)
     # The start of the trial as recorded by the EEG start-trial marker and the
     # eyelink start_trial message are usually a little offset. However, the
     # EEG epoch triggers should *not* be offset relative to the eye-tracking
@@ -272,6 +287,7 @@ def _read_eye_data(eye_path, metadata, kwargs):
         logger.info('no eye data detected')
         return None
     if 'traceprocessor' not in kwargs:
+        kwargs = kwargs.copy()
         logger.info('no traceprocessor specified, using default')
         kwargs['traceprocessor'] = defaulttraceprocessor(
             blinkreconstruct=True, downsample=10, mode='advanced')
