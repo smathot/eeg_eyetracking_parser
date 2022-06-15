@@ -121,6 +121,21 @@ Triggers should only be used for temporal information. Conditions are only logge
 
 ## Function reference
 
+**<span style="color:purple">eeg&#95;eyetracking&#95;parser.epochs&#95;to&#95;series</span>_(events)_**
+
+
+Selects all trial triggers from event information. Trial triggers have
+values between 128 and 255 (inclusive).
+
+
+#### Parameters
+* events: tuple :  Event information as returned by `read_subject()`.
+
+#### Returns
+<b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
+
+
+
 **<span style="color:purple">eeg&#95;eyetracking&#95;parser.epoch&#95;trigger</span>_(events, trigger)_**
 
 
@@ -131,6 +146,21 @@ Epoch triggers have values between 1 and 127 (inclusive).
 #### Parameters
 * events: tuple :  Event information as returned by `read_subject()`.
 * trigger: int :  A trigger code, which is a positive value.
+
+#### Returns
+<b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
+
+
+
+**<span style="color:purple">eeg&#95;eyetracking&#95;parser.PupilEpochs</span>_(events)_**
+
+
+Selects all trial triggers from event information. Trial triggers have
+values between 128 and 255 (inclusive).
+
+
+#### Parameters
+* events: tuple :  Event information as returned by `read_subject()`.
 
 #### Returns
 <b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
