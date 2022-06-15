@@ -58,7 +58,7 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     -------
     tuple:
         A raw (EEG data), events (EEG triggers), metadata (a table with
-        experimental variables), eye_dm (eye-tracking data) tuple.
+        experimental variables) tuple.
     """
     if isinstance(subject_nr, int):
         subject_path = Path(folder) / Path('sub-{:02d}'.format(subject_nr))
@@ -81,14 +81,14 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
         n_trials_eye = len(dm)
         assert(n_trials_eeg == n_trials_eye)
         logger.info(f'eeg data and metata have matching length')
-    return raw, events, metadata, dm
+    return raw, events, metadata
 
 
 def _dm_to_metadata(dm):
     """Convert dm to pandas dataframe but remove seriescolumns to save memory.
     """
     return cnv.to_pandas(dm[
-        [col for col, name in dm.columns if not isinstance(col, _SeriesColumn)]
+        [col for name, col in dm.columns if not isinstance(col, _SeriesColumn)]
     ])
 
 
@@ -242,10 +242,6 @@ def _read_eye_data(eye_path, metadata, kwargs):
     if not eye_path.exists():
         logger.info('no eye data detected')
         return None
-    if 'traceprocessor' not in kwargs:
-        kwargs = kwargs.copy()
-        logger.info('no traceprocessor specified, using default')
-        kwargs['traceprocessor'] = defaulttraceprocessor(
-            blinkreconstruct=True, downsample=10, mode='advanced')
     logger.info('loading eye data from {eye_path}')
-    return parse(folder=eye_path, **kwargs)
+    return parse(folder=eye_path, maxtracelen=1, pupil_size=False,
+                 gaze_pos=False)
