@@ -9,7 +9,7 @@ A Python module for reading concurrently recorded EEG and eye-tracking data, and
 Key features:
 
 - Experimental variables (such as conditions) from the eye-tracking data are used as metadata for the EEG analysis.
-- Gaze and pupil data is added as channels to the EEG data. (This data is also included in the `DataMatrix` object, where it is split into phases/ epochs.)
+- Gaze and pupil data is added as channels to the EEG data.
 - Blinks and saccades from the eye-tracking data are added as BAD annotations to the EEG data.
 
 
@@ -20,7 +20,7 @@ Parse the data.
 ```python
 import eeg_eyetracking_parser as eet
 
-raw, events, metadata, dm = eet.read_subject(2)
+raw, events, metadata = eet.read_subject(2)
 raw.plot()
 ```
 
@@ -41,25 +41,26 @@ for ecc in ('near', 'medium', 'far'):
 plt.legend()
 ```
 
-Plot pupil size during the same period. We can do this in two ways. First, we can use the 'PupilSize' channel and plot it similar to how we plot the EEG data:
+Plot pupil size during the same period. Because the regular `mne.Epoch()` object doesn't play nice with non-data channels, such as PupilSize, you need to use the `eet.PupilEpochs()` class instead (which is otherwise identical). You will often want to specify `reject_by_annotation=False` to avoid trials with blinks from being excluded.
 
 ```python
-cue_epoch = mne.Epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=0,
-                       tmax=1, metadata=metadata, baseline=None, preload=True)
+cue_epoch = eet.PupilEpochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=0,
+                       tmax=3, metadata=metadata, baseline=(0, .05), 
+                       reject_by_annotation=False)
 for ecc in ('near', 'medium', 'far'):
-    cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average(picks='PupilSize')
+    cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
     plt.plot(cue_evoked.data.mean(axis=0))
 plt.legend()
 ```
 
-We can also use the `dm` object. In this case we need to concatenate phases 1 and 2, because phase 1 is by itself only 1000 ms (i.e. trigger 2 was sent after 1000 ms).
+You can also convert the `PupilEpochs` object to a `SeriesColumn` and plot it that way, for example using `time_series_test.plot()`.
 
 ```python
-from datamatrix import series as srs
+from datamatrix import convert as cnv
 import time_series_test as tst
 
-dm.pupil = srs.concatenate(srs.endlock(dm.ptrace_1), dm.ptrace_2)
-dm.pupil.depth = 300
+dm = cnv.from_pandas(metadata)
+dm.pupil = eet.epochs_to_series(dm, cue_epoch)
 tst.plot(dm, dv='pupil', hue_factor='cue_eccentricity')
 ```
 
