@@ -160,11 +160,11 @@ sys.path.append(os.getcwd())
 import eeg_eyetracking_parser as eet
 from npdoc_to_md import render_md_from_obj_docstring
 
-print(render_md_from_obj_docstring(eet.trial_trigger, 'eeg_eyetracking_parser.epochs_to_series'))
+print(render_md_from_obj_docstring(eet.epochs_to_series, 'eeg_eyetracking_parser.epochs_to_series'))
 print('\n\n')
 print(render_md_from_obj_docstring(eet.epoch_trigger, 'eeg_eyetracking_parser.epoch_trigger'))
 print('\n\n')
-print(render_md_from_obj_docstring(eet.trial_trigger, 'eeg_eyetracking_parser.PupilEpochs'))
+print(render_md_from_obj_docstring(eet.PupilEpochs, 'eeg_eyetracking_parser.PupilEpochs'))
 print('\n\n')
 print(render_md_from_obj_docstring(eet.read_subject, 'eeg_eyetracking_parser.read_subject'))
 print('\n\n')

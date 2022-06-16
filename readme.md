@@ -154,18 +154,23 @@ Triggers should only be used for temporal information. Conditions are only logge
 
 ## Function reference
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.epochs&#95;to&#95;series</span>_(events)_**
+**<span style="color:purple">eeg&#95;eyetracking&#95;parser.epochs&#95;to&#95;series</span>_(dm, epochs, baseline_trim=(-2, 2))_**
 
 
-Selects all trial triggers from event information. Trial triggers have
-values between 128 and 255 (inclusive).
+Takes an Epochs or PupilEpochs object and converts it to a DataMatrix
+SeriesColumn. If a baseline has been specified in the epoch, it is applied
+to each row of the series separately. Rows where the mean baseline value
+(z-scored) is not within the range indicated by `baseline_trim` are set to
+`NAN`.
 
 
 #### Parameters
-* events: tuple :  Event information as returned by `read_subject()`.
+* dm: DataMatrix :  A DataMatrix object to which the series belongs
+* epochs: Epochs or PupilEpochs :  The source object with the epoch data.
+* baseline_trim: tuple of int, optional :  The range of acceptable baseline values. This refers to z-scores.
 
 #### Returns
-<b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
+<b><i>SeriesColumn</i></b>
 
 
 
@@ -185,18 +190,12 @@ Epoch triggers have values between 1 and 127 (inclusive).
 
 
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.PupilEpochs</span>_(events)_**
+**<span style="color:purple">eeg&#95;eyetracking&#95;parser.PupilEpochs</span>_(*args, **kwargs)_**
 
 
-Selects all trial triggers from event information. Trial triggers have
-values between 128 and 255 (inclusive).
-
-
-#### Parameters
-* events: tuple :  Event information as returned by `read_subject()`.
-
-#### Returns
-<b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
+An Epochs class for the PupilSize channel. This allows baseline
+correction to be applied to pupil size, even though this channel is not a
+regular data channel.
 
 
 
