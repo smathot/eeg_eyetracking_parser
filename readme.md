@@ -2,6 +2,16 @@
 
 Copyright (2022) Hermine Berberyan, Wouter Kruijne, Sebastiaan Mathôt, Ana Vilotijević
 
+## Table of contents
+
+- [About](#about)
+- [Example](#example)
+- [Installation](#installation)
+- [Dependencies](#dependencies)
+- [Assumptions](#assumptions)
+- [Function reference](#function-reference)
+- [License](#license)
+
 ## About
 
 A Python module for reading concurrently recorded EEG and eye-tracking data, and parsing this data into convenient objects for further analysis. For this to work, several assumptions need to be met, as described under [Assumptions](#assumptions). At present, this module is largely for internal use, and focused on our own recording environment.
@@ -24,6 +34,22 @@ raw, events, metadata = eet.read_subject(2)
 raw.plot()
 ```
 
+To avoid having to parse the data over and over again, you can use [memoization](https://pydatamatrix.eu/memoization/), which is a way to store the return values of a function:
+
+```python
+from datamatrix import functional as fnc
+
+
+@fnc.memoize(persistent=True)
+def read_subject(subject_nr):
+    return eet.read_subject(subject_nr)
+
+
+# read_subject.clear()  # uncomment to clear the cache and reparse
+raw, events, metadata = read_subject(2)
+```
+
+
 Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`.
 
 ```python
@@ -34,7 +60,8 @@ CUE_TRIGGER = 1
 CHANNELS = 'O1', 'O2', 'P3', 'P4'
 
 cue_epoch = mne.Epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=-.1,
-                       tmax=3, metadata=metadata, picks=CHANNELS)
+                       tmax=3, metadata=metadata, picks=CHANNELS,
+                       reject_by_annotation=False)
 for ecc in ('near', 'medium', 'far'):
     cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
     plt.plot(cue_evoked.data.mean(axis=0), label=ecc)
@@ -45,8 +72,8 @@ Plot pupil size during the same period. Because the regular `mne.Epoch()` object
 
 ```python
 cue_epoch = eet.PupilEpochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=0,
-                       tmax=3, metadata=metadata, baseline=(0, .05), 
-                       reject_by_annotation=False)
+                            tmax=3, metadata=metadata, baseline=(0, .05), 
+                            reject_by_annotation=False)
 for ecc in ('near', 'medium', 'far'):
     cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
     plt.plot(cue_evoked.data.mean(axis=0))
@@ -62,6 +89,12 @@ import time_series_test as tst
 dm = cnv.from_pandas(metadata)
 dm.pupil = eet.epochs_to_series(dm, cue_epoch)
 tst.plot(dm, dv='pupil', hue_factor='cue_eccentricity')
+```
+
+## Installation
+
+```
+pip install eeg_eyetracking_parser
 ```
 
 ## Dependencies
