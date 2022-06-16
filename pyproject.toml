@@ -1,0 +1,20 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+[project]
+name = "eeg_eyetracking_parser"
+authors = [
+    {name = "Hermine Berberyan", email = "h.berberyan@rug.nl"},
+    {name = "Wouter Kruijne", email = "w.kruijne@rug.nl"},
+    {name = "Sebastiaan Mathôt", email = "s.mathot@cogsci.nl"},
+    {name = "Ana Vilotjević", email = "a.vilotijevic@rug.nl"}
+]
+readme = "readme.md"
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+]
+requires-python = ">=3.5"
+dynamic = ["version", "description"]
+[project.urls]
+Documentation = "https://github.com/smathot/eeg_eyetracking_parser"
+Source = "https://github.com/smathot/eeg_eyetracking_parser"
