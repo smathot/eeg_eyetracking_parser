@@ -128,7 +128,7 @@ data/
         beh/
             sub-02_task-attentionalbreadth_beh.csv
         # Eye-tracking data
-        eye/
+        eyetracking/
             sub-02_task-attentionalbreadth_physio.edf
 ```
 
