@@ -7,4 +7,4 @@ from ._parsing import read_subject
 from ._pupil_epochs import PupilEpochs, epochs_to_series
 
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
