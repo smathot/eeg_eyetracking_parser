@@ -72,15 +72,10 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     eye_path = subject_path / Path('eyetracking')
     dm = _read_eye_data(eye_path, metadata, eye_kwargs)
     if dm is not None and raw is not None:
-        _merge_eye_and_eeg_data(eye_path, raw, events, dm, min_sacc_dur,
-                                min_sacc_size, min_blink_dur, eye_kwargs)
+        dm = _merge_eye_and_eeg_data(eye_path, raw, events, dm, min_sacc_dur,
+                                     min_sacc_size, min_blink_dur, eye_kwargs)
     if metadata is None and dm is not None:
         metadata = _dm_to_metadata(dm)
-    if events is not None and dm is not None:
-        n_trials_eeg = sum(events[0][:, 2] >= 128)
-        n_trials_eye = len(dm)
-        assert(n_trials_eeg == n_trials_eye)
-        logger.info(f'eeg data and metata have matching length')
     return raw, events, metadata
 
 
@@ -109,6 +104,47 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
             blinkreconstruct=True, mode='advanced')
     bigdm = parse(folder=eye_path, trialphase='trial', phasefilter=only_trial,
                   **eye_kwargs)
+    # Valid rows are those rows in which there is an epoch 1. Since the epochs
+    # are only parsed in dm (not in bigdm), we use indices in dm to filter both
+    # dm and bigdm. The result is that dm and bigdm only contain rows that
+    # should correspond to trials in the EEG recording.
+    if '' in dm.t_onset_1:
+        valid_rows = dm[dm[dm.t_onset_1] != '']
+        logger.warning(
+            f'ignoring {len(dm) - len(valid_rows)} rows of eye-tracking data without epoch 1')
+        bigdm = bigdm[valid_rows]
+        dm = dm[valid_rows]
+    # Check for missing EEG triggers. If the first trigger is missing, a
+    # ValueError is raised. If any other trigger is missing, it is marked and
+    # removed also from dm and bigdm.
+    triggers = trial_trigger(events)[:, 2]
+    if triggers[0] != 128:
+        raise ValueError(
+            f'The first trial trigger is {triggers[0]}, should be 128')
+    rows = list(range(len(dm)))
+    for i, (tr1, tr2) in enumerate(zip(triggers[:-1], triggers[1:])):
+        if tr2 - tr1 not in (1, -127):
+            rows.remove(i + 1)
+            logger.warning(f'missing trial trigger for trial {i + 1}')
+    dm = dm[rows]
+    bigdm = bigdm[rows]
+    # Check if final triggers are missing from the EEG. If so, these are
+    # truncated also from dm and bigdm. We also exclude the last trial,
+    # because this last trial may not have been completed. (We don't check
+    # this, but simply err on the side of caution.)
+    missing = len(dm) - len(triggers)
+    if missing > 0:
+        logger.warning(
+            f'final {missing} triggers missing from recording, truncating eye data with one extra trial because the last trial may be incomplete too')
+        dm = dm[:-missing - 1]
+        bigdm = bigdm[:-missing - 1]
+        last_trigger_index = np.where(events[0][:, 2] >= 128)[0][-1]
+        events = events[0][:last_trigger_index - 1], events[1]
+    # Now double-check that EEG and eye-tracking data match in length
+    n_trials_eeg = sum(events[0][:, 2] >= 128)
+    assert(n_trials_eeg == len(dm))
+    assert(n_trials_eeg == len(bigdm))
+    logger.info(f'eeg data and metata have matching length')
     # The start of the trial as recorded by the EEG start-trial marker and the
     # eyelink start_trial message are usually a little offset. However, the
     # EEG epoch triggers should *not* be offset relative to the eye-tracking
@@ -135,6 +171,9 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     trialdepth = bigdm.ptrace_trial.depth
     for (timestamp, _, code), row in zip(trial_trigger(events), bigdm):
         timestamp += row.eye_offset
+        if len(raw) <= timestamp + trialdepth:
+            logger.warning('eeg recording ended before last eye tracking trial')
+            continue
         data[0, timestamp: timestamp + trialdepth] = row.xtrace_trial
         data[1, timestamp: timestamp + trialdepth] = row.ytrace_trial
         data[2, timestamp: timestamp + trialdepth] = row.ptrace_trial
@@ -194,6 +233,7 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
         duration=duration,
         description=description)
     raw.set_annotations(raw.annotations + annotations)
+    return dm
 
 
 def _read_eeg_data(eeg_path, trigger_parser, margin):
@@ -206,11 +246,15 @@ def _read_eeg_data(eeg_path, trigger_parser, margin):
     vhdr_path = list(eeg_path.glob('*.vhdr'))[0]
     logger.info('loading eeg data from {vhdr_path}')
     raw = mne.io.read_raw_brainvision(vhdr_path, preload=True)
+    if raw.info['sfreq'] != 1000:
+        logger.warning(
+            f'sampling rate is {raw.info["sfreq"]} Hz, resampling to 1000 Hz.')
+        raw = raw.resample(1000)
     logger.info('creating events from annotations')
     events = mne.events_from_annotations(raw,
         _parse_triggers if trigger_parser is None else trigger_parser)
     if margin is not None:
-        end = min(len(raw), events[0][:, 0][-1] / 1000 + margin)
+        end = min(raw.times[-1], events[0][:, 0][-1] / 1000 + margin)
         logger.info(f'trimming eeg to 0 - {end} s')
         raw.crop(0, end)
     logger.info('validating events')
