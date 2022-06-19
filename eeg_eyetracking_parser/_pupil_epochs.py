@@ -46,13 +46,8 @@ def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
     SeriesColumn
     """
     a = epochs.get_data()
-    if len(dm) != a.shape[0]:
-        raise ValueError(
-            'The number of epochs does not match the length of the DataMatrix. '
-            'Consider passong reject_by_annotation=False to Epochs().'
-        )
     s = _SeriesColumn(dm, depth=a.shape[2])
-    s[:] = a.mean(axis=1)
+    s._seq[epochs.metadata.index] = a.mean(axis=1)
     if epochs.baseline is not None:
         start, end = epochs.baseline
         t = epochs._raw_times
