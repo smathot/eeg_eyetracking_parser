@@ -1,12 +1,9 @@
 import numpy as np
 import mne
 import os
-import getpass
-import eeg_eyetracking_parser as eet
-from mne_bids.copyfiles import copyfile_brainvision
+from . import trial_trigger
 from mne.preprocessing import ICA
 import autoreject as ar
-from shutil import copyfile
 import json
 import matplotlib.pyplot as plt
 
@@ -32,7 +29,7 @@ def drop_unused_channels(raw, chan_name_pattern='Channel'):
 def create_eog_channels(raw, eog_channels=['VEOGT', 'VEOGB', 'HEOGL', 'HEOGR']):
     """
     Create EOG channels by subtracting corresponding channels
-    (VEOG = VEOGB - VEOGT)
+    (VEOG = VEOGT - VEOGB)
     (HEOG = HEOGL - HEOGR)
     """
     chinds = [raw.ch_names.index(ichannel) for ichannel in eog_channels]
@@ -71,7 +68,6 @@ def notch_filter(raw, frequencies_remove=(50, 100, 150, 200)):
 
 
 def band_pass_filter(raw, lf=0.1, hf=40, plot=False):
-    # default band-pass filter of 0.1 and 40
     """
     High-pass and low-pass filter for EEG data (band-pass filter)
     High-pass removes slow drifts
@@ -94,15 +90,16 @@ def downsample_data(raw, srate=256):
     return raw
 
 
-def autodetect_bad_channels(raw, events, plot=False, output_file=False, eeg_scaling=20e-5):
+def autodetect_bad_channels(raw, events, plot=False, output_file=False, preprocessing_path=None, eeg_scaling=20e-5):
     """
     Detect bad channels using ransac algorithm
     """
     raw.info['bads'] = []
-    raw.pick_types(eeg=True)
-    trial_events = eet.trial_trigger(events)
+    raw_bads = raw.copy()
+    raw_bads.pick_types(eeg=True)
+    trial_events = trial_trigger(events)
     median_duration = np.median(trial_events[1:, 0] - trial_events[:-1, 0]) * 1.5
-    cue_epoch = mne.Epochs(raw, trial_events, tmin=0, baseline=None,
+    cue_epoch = mne.Epochs(raw_bads, trial_events, tmin=0, baseline=None,
                            tmax=median_duration / 1000, preload=True)
     ransac = ar.Ransac()
     ransac = ransac.fit(cue_epoch)
@@ -115,13 +112,13 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False, eeg_scal
             os.makedirs(subject_bad_dir)
 
         if plot:
-            raw.plot(butterfly=True, bad_color='r', scalings=eeg_scaling)
+            raw_bads.plot(butterfly=True, bad_color='r', scalings=eeg_scaling)
             plt.savefig(os.path.join(subject_bad_dir, 'raw_with_bads_ransac.png'))
             plt.show()
 
-            fg = plt.figure(figsize=(20, 5))
-            plt.bar(range(len(raw.ch_names)), ransac.bad_log.mean(0))
-            plt.xticks(range(len(raw.ch_names)), raw.ch_names)
+            plt.figure(figsize=(20, 5))
+            plt.bar(range(len(raw_bads.ch_names)), ransac.bad_log.mean(0))
+            plt.xticks(range(len(raw_bads.ch_names)), raw_bads.ch_names)
             plt.tight_layout()
             plt.savefig(os.path.join(subject_bad_dir, 'ransac_scores.png'))
             plt.show()
@@ -136,7 +133,7 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False, eeg_scal
     return raw, ransac
 
 
-def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500, random_state_set=97, output_file=False):
+def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500, random_state_set=97, output_file=False, preprocessing_path=None):
     """
     Run ICA (independent component analysis)
     Here we use a robust and fast 'picard' method by default as a fast and robust algorithm
@@ -159,7 +156,7 @@ def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500, ra
     return raw, ica
 
 
-def auto_select_ica(raw, ica, plot=False, output_file=False):
+def auto_select_ica(raw, ica, plot=False, output_file=False, preprocessing_path=None):
     """
     Select ICA components automatically by matching them to EOG channels
     """
@@ -192,45 +189,12 @@ def auto_select_ica(raw, ica, plot=False, output_file=False):
             json.dump(ica_components, f)
     return raw
 
+
 def interpolate_bads(raw, resetting=False):
     """
     Interpolate channels that we previously marked as bads
     """
     raw.interpolate_bads(reset_bads=resetting)
     return raw
-
-
-if __name__ == '__main__':
-    Username = getpass.getuser()
-    EEG_path = os.path.join(os.path.sep, "Users", Username, "Documents", "Eyetracking_EEG")
-    raw_data_folder = os.path.join(EEG_path, "raw_data")
-    bids_data_folder = os.path.join(EEG_path, "data_bids")
-    preprocessing_path = os.path.join(EEG_path, "preprocessing")
-    if not os.path.exists(preprocessing_path):
-        os.makedirs(preprocessing_path)
-    subject_nr = 2
-
-    create_bids_from_raw(raw_data_folder, bids_data_folder, subject_nr, 'pupman')
-    raw, events, metadata = eet.read_subject(subject_nr, folder=bids_data_folder)
-    raw.info['subject_info'] = {'id': subject_nr}
-
-    rereference_channels(raw, ref_channels=['A1', 'A2'])
-    drop_unused_channels(raw, chan_name_pattern='Channel')
-    create_eog_channels(raw)
-    set_montage(raw)  # plot=True
-
-    band_pass_filter(raw)  # plot=True
-    raw, ransac = autodetect_bad_channels(raw, events)  # plot=True, output_file=True
-    # subject_bads_dir = os.path.join(preprocessing_path, "Bad_channels", 'subject_' + str(raw.info['subject_info']['id']))
-    # raw = mne.io.read_raw_fif(os.path.join(subject_bads_dir, 'raw_bads_eeg.fif'))
-
-    raw, ica = run_ica(raw, output_file=True)
-    # subject_ica_dir = os.path.join(preprocessing_path, "ICA", 'subject_' + str(raw.info['subject_info']['id']))
-    # ica = mne.preprocessing.read_ica(os.path.join(subject_ica_dir, 'res_ica.fif'))
-    # raw = mne.io.read_raw_fif(os.path.join(subject_ica_dir, 'raw_ica_eeg.fif'))
-
-    raw = auto_select_ica(raw, ica, plot=True, output_file=True)
-    raw, AR = autoreject_artifacts(raw, output_file=True)
-    raw = interpolate_bads(raw)
 
 
