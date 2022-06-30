@@ -101,6 +101,7 @@ pip install eeg_eyetracking_parser
 
 - mne-python
 - eyelinkparser
+- autoreject
 
 
 ## Assumptions
