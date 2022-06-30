@@ -59,7 +59,7 @@ def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
             for row_nr, (z, bl) in enumerate(zip(ops.z(bl), bl)):
                 if z < baseline_trim[0] or z > baseline_trim[1]:
                     logging.debug(
-                        f'setting trace to NAN because baseline out of bounds (z={z})')
+                        f'setting trace to NAN because baseline out of bounds (bl={bl}, z={z})')
                     s[row_nr] = NAN
         s = srs.baseline(s, s, bl_start, bl_end)
     return s
