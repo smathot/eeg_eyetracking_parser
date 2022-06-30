@@ -13,6 +13,12 @@ readme = "readme.md"
 classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
+dependencies = [
+    "python-eyelinkparser",
+    "mne",
+    "autoreject",
+    "h5io"
+]
 requires-python = ">=3.5"
 dynamic = ["version", "description"]
 [project.urls]
