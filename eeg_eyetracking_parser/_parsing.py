@@ -13,8 +13,9 @@ logger = logging.getLogger('eeg_eyetracking_parser')
 
 def read_subject(subject_nr, folder='data/', trigger_parser=None,
                  eeg_margin=30, min_sacc_dur=10, min_sacc_size=30,
-                 min_blink_dur=10, eye_kwargs={}, downsample_data_kwargs={},
-                 drop_unused_channels_kwargs={},
+                 min_blink_dur=10, blink_annotation='BLINK',
+                 saccade_annotation='SACCADE', eye_kwargs={},
+                 downsample_data_kwargs={}, drop_unused_channels_kwargs={},
                  rereference_channels_kwargs={}, create_eog_channels_kwargs={},
                  set_montage_kwargs={}, band_pass_filter_kwargs={},
                  autodetect_bad_channels_kwargs={}, run_ica_kwargs={},
@@ -51,10 +52,15 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
         BAD_SACCADE.
     min_sacc_size: int, optional
         The minimum size of a saccade (in pixels) before it is annotated as a
-        BAD_SACCADE.
+        saccade.
     min_blink_dur: int, optional
-        The minimum duration of a blink before it is annotated as a
-        BAD_BLINK.
+        The minimum duration of a blink before it is annotated as a blink.
+    blink_annotation: str, optional
+        The annotation label to be used for blinks. Use a BAD_ suffix to
+        use blinks a bads annotations.
+    saccade_annotation: str, optional
+        The annotation label to be used for saccades. Use a BAD_ suffix to
+        use saccades a bads annotations.
     eye_kwargs: dict, optional
         Optional keyword arguments to be passed onto the EyeLink parser. If
         traceprocessor is provided, a default traceprocessor is used with
@@ -98,7 +104,9 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     dm = _read_eye_data(eye_path, metadata, eye_kwargs)
     if dm is not None and raw is not None:
         dm = _merge_eye_and_eeg_data(eye_path, raw, events, dm, min_sacc_dur,
-                                     min_sacc_size, min_blink_dur, eye_kwargs)
+                                     min_sacc_size, min_blink_dur,
+                                     blink_annotation, saccade_annotation,
+                                     eye_kwargs)
     if metadata is None and dm is not None:
         metadata = _dm_to_metadata(dm)
     logger.info('downsampling')
@@ -134,7 +142,7 @@ def _dm_to_metadata(dm):
 
 def _merge_eye_and_eeg_data(eye_path, raw, events,
                             dm, min_sacc_dur, min_sacc_size, min_blink_dur,
-                            eye_kwargs):
+                            blink_annotation, saccade_annotation, eye_kwargs):
     """Add the eye data as channels to the EEG data. In addition, add blinks
     and saccades as annotations.
     """
@@ -235,7 +243,7 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     raw.add_channels([tmp])
     # Finally, get the blinks and saccades from the eye-tracking data and add
     # them as BAD annotations to the raw.
-    logger.info('adding BAD_BLINK and BAD_SACCADE annotations')
+    logger.info('adding blink and saccade annotations')
     onset = []
     duration = []
     description = []
@@ -251,7 +259,7 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
             start = st - t0
             onset.append((timestamp + start) / 1000)
             duration.append(dur / 1000)
-            description.append('BAD_BLINK')
+            description.append(blink_annotation)
         # Saccades are deduced through the end of fixation n and the start of
         # fixation n + 1
         for st, sx, sy, et, ex, ey in zip(
@@ -272,7 +280,7 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
                 continue
             onset.append((timestamp + start) / 1000)
             duration.append(dur / 1000)
-            description.append('BAD_SACCADE')
+            description.append(saccade_annotation)
     annotations = mne.Annotations(
         onset=onset,
         duration=duration,
