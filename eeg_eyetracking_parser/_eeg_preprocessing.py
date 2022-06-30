@@ -37,7 +37,8 @@ def drop_unused_channels(raw, chan_name_pattern='Channel'):
     raw: instance of raw EEG data
         A raw EEG data
     chan_name_pattern: string, optional
-        All the channels that start with chan_name pattern will be excluded as they contain no data
+        All the channels that start with chan_name pattern will be excluded as
+        they contain no data
 
     Returns
     -------
@@ -49,7 +50,8 @@ def drop_unused_channels(raw, chan_name_pattern='Channel'):
     raw.drop_channels(empty_chan_names)
 
 
-def create_eog_channels(raw, eog_channels=['VEOGT', 'VEOGB', 'HEOGL', 'HEOGR']):
+def create_eog_channels(raw,
+                        eog_channels=['VEOGT', 'VEOGB', 'HEOGL', 'HEOGR']):
     """
     Create EOG channels by subtracting corresponding channels
     (VEOG = VEOGT - VEOGB)
@@ -82,7 +84,8 @@ def create_eog_channels(raw, eog_channels=['VEOGT', 'VEOGB', 'HEOGL', 'HEOGR']):
 def set_montage(raw, montage_name='standard_1020', plot=False):
     """
     Set Montage for EEG channel positions
-    Here we use standard_1020 and thus electrode names and positions are according to international 10-20 system
+    Here we use standard_1020 and thus electrode names and positions are
+    according to international 10-20 system
 
     Parameters
     ----------
@@ -151,7 +154,8 @@ def band_pass_filter(raw, lf=0.1, hf=40, plot=False):
         raw_unfiltered = raw.copy()
     raw.filter(l_freq=lf, h_freq=hf, picks='all')
     if plot:
-        for title, data in zip(['Unfiltered', 'Bandpass filtered'], [raw_unfiltered, raw]):
+        for title, data in zip(['Unfiltered', 'Bandpass filtered'],
+                               [raw_unfiltered, raw]):
             fig = data.plot_psd(fmax=250)
             fig.suptitle(title)
 
@@ -176,10 +180,13 @@ def downsample_data(raw, events, srate=256):
     events: tuple
         Downsampled events.
     """
+    events, event_id = events
     raw, events = raw.resample(srate, events=events, npad="auto")
+    return raw, (events, event_id)
 
 
-def autodetect_bad_channels(raw, events, plot=False, output_file=False, preprocessing_path=None, eeg_scaling=20e-5):
+def autodetect_bad_channels(raw, events, plot=False, output_file=False,
+                            preprocessing_path=None, eeg_scaling=20e-5):
     """
     Detect bad channels using ransac algorithm
 
@@ -194,7 +201,8 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False, preproce
     output_file: bool, optional
         True if the output file is saved. By default, no saving
     preprocessing_path: string, optional
-        If the output is saved, specify the preprocessing path it will be saved to
+        If the output is saved, specify the preprocessing path it will be saved
+        to
     eeg_scaling: dict, optional
         Scaling with which to visualize the data, in µV
 
@@ -207,7 +215,8 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False, preproce
     raw_bads = raw.copy()
     raw_bads.pick_types(eeg=True)
     trial_events = trial_trigger(events)
-    median_duration = np.median(trial_events[1:, 0] - trial_events[:-1, 0]) * 1.5
+    median_duration = np.median(
+        trial_events[1:, 0] - trial_events[:-1, 0]) * 1.5
     cue_epoch = mne.Epochs(raw_bads, trial_events, tmin=0, baseline=None,
                            tmax=median_duration / 1000, preload=True)
     ransac = ar.Ransac()
@@ -215,12 +224,14 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False, preproce
     raw.info['bads'] = ransac.bad_chs_
     if plot or output_file:
         bad_dir = os.path.join(preprocessing_path, "Bad_channels")
-        subject_bad_dir = os.path.join(bad_dir, 'subject_' + str(raw.info['subject_info']['id']))
+        subject_bad_dir = os.path.join(
+            bad_dir, 'subject_' + str(raw.info['subject_info']['id']))
         if not os.path.exists(subject_bad_dir):
             os.makedirs(subject_bad_dir)
         if plot:
             raw_bads.plot(butterfly=True, bad_color='r', scalings=eeg_scaling)
-            plt.savefig(os.path.join(subject_bad_dir, 'raw_with_bads_ransac.png'))
+            plt.savefig(
+                os.path.join(subject_bad_dir,'raw_with_bads_ransac.png'))
             plt.show()
             plt.figure(figsize=(20, 5))
             plt.bar(range(len(raw_bads.ch_names)), ransac.bad_log.mean(0))
@@ -236,10 +247,12 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False, preproce
             raw.save(raw_bads_file, overwrite=True)
 
 
-def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500, random_state_set=97, output_file=False, preprocessing_path=None):
+def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500,
+            random_state_set=97, output_file=False, preprocessing_path=None):
     """
     Run ICA (independent component analysis)
-    Here we use a robust and fast 'picard' method by default as a fast and robust algorithm
+    Here we use a robust and fast 'picard' method by default as a fast and
+    robust algorithm
 
     Parameters
     ----------
@@ -248,7 +261,8 @@ def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500, ra
     lf: float, optional
         Low-pass frequency edge
     sel_components: string, int, float, optional
-        Be default, 'all' meaning that number of components = number of channels
+        Be default, 'all' meaning that number of components = number of
+        channels
     ica_method: string, optional
         Choice of the following methods: ‘fastica’, ‘infomax’ or ‘picard’
     n_iter: int, optional
@@ -258,7 +272,8 @@ def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500, ra
     output_file: bool, optional
         True if the output file is saved. By default, no saving
     preprocessing_path: string, optional
-        If the output is saved, specify the preprocessing path it will be saved to
+        If the output is saved, specify the preprocessing path it will be saved
+        to
 
     Returns
     -------
@@ -271,18 +286,21 @@ def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500, ra
         n_sel_components = len(picks)
     else:
         n_sel_components = sel_components
-    ica = ICA(n_components=n_sel_components, method=ica_method, max_iter=n_iter, random_state=random_state_set)
+    ica = ICA(n_components=n_sel_components, method=ica_method,
+              max_iter=n_iter, random_state=random_state_set)
     ica.fit(raw_ica)
     if output_file:
         ica_dir = os.path.join(preprocessing_path, "ICA")
-        subject_ica_dir = os.path.join(ica_dir, 'subject_' + str(raw.info['subject_info']['id']))
+        subject_ica_dir = os.path.join(
+            ica_dir,'subject_' + str(raw.info['subject_info']['id']))
         if not os.path.exists(subject_ica_dir):
             os.makedirs(subject_ica_dir)
         ica.save(os.path.join(subject_ica_dir, 'res_ica.fif'), overwrite=True)
     return ica
 
 
-def auto_select_ica(raw, ica, plot=False, output_file=False, preprocessing_path=None):
+def auto_select_ica(raw, ica, plot=False, output_file=False,
+                    preprocessing_path=None):
     """
     Select ICA components automatically by matching them to EOG channels
 
@@ -297,7 +315,8 @@ def auto_select_ica(raw, ica, plot=False, output_file=False, preprocessing_path=
     output_file: bool, optional
         True if the output file is saved. By default, no saving
     preprocessing_path: string, optional
-        If the output is saved, specify the preprocessing path it will be saved to
+        If the output is saved, specify the preprocessing path it will be saved
+        to
 
     Returns
     -------
@@ -309,12 +328,14 @@ def auto_select_ica(raw, ica, plot=False, output_file=False, preprocessing_path=
     ica.apply(raw)
     if plot:
         ica_dir = os.path.join(preprocessing_path, "ICA")
-        subject_ica_dir = os.path.join(ica_dir, 'subject_' + str(raw.info['subject_info']['id']))
+        subject_ica_dir = os.path.join(
+            ica_dir, 'subject_' + str(raw.info['subject_info']['id']))
         if not os.path.exists(subject_ica_dir):
             os.makedirs(subject_ica_dir)
         for ieog in eog_indices:
             ica.plot_properties(raw, picks=ieog)
-            plt.savefig(os.path.join(subject_ica_dir, str(ieog) + 'ica_component_properties.png'))
+            plt.savefig(os.path.join(
+                subject_ica_dir, str(ieog) + 'ica_component_properties.png'))
             plt.show()
         ica.plot_sources(raw, show_scrollbars=False)
         plt.savefig(os.path.join(subject_ica_dir, 'latent_sources_raw.png'))
@@ -346,5 +367,3 @@ def interpolate_bads(raw, resetting=False):
         A raw EEG data with bad channels interpolated
     """
     raw.interpolate_bads(reset_bads=resetting)
-
-

@@ -13,7 +13,12 @@ logger = logging.getLogger('eeg_eyetracking_parser')
 
 def read_subject(subject_nr, folder='data/', trigger_parser=None,
                  eeg_margin=30, min_sacc_dur=10, min_sacc_size=30,
-                 min_blink_dur=10, eye_kwargs={}):
+                 min_blink_dur=10, eye_kwargs={}, downsample_data_kwargs={},
+                 drop_unused_channels_kwargs={},
+                 rereference_channels_kwargs={}, create_eog_channels_kwargs={},
+                 set_montage_kwargs={}, band_pass_filter_kwargs={},
+                 autodetect_bad_channels_kwargs={}, run_ica_kwargs={},
+                 auto_select_ica_kwargs={}, interpolate_bads_kwargs={}):
     """Reads EEG, eye-tracking, and behavioral data for a single participant.
     This data should be organized according to the BIDS specification.
     
@@ -54,7 +59,27 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
         Optional keyword arguments to be passed onto the EyeLink parser. If
         traceprocessor is provided, a default traceprocessor is used with
         advanced blink reconstruction enabled and 10x downsampling.
-
+    downsample_data_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    drop_unused_channels_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    rereference_channels_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    create_eog_channels_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    set_montage_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    band_pass_filter_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    autodetect_bad_channels_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    run_ica_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    auto_select_ica_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    interpolate_bads_kwargs: dict, optional
+        Passed as keyword arguments to corresponding preprocessing function.
+    
     Returns
     -------
     tuple:
@@ -77,26 +102,25 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     if metadata is None and dm is not None:
         metadata = _dm_to_metadata(dm)
     logger.info('downsampling')
-    #epp.downsample_data(raw)
+    raw, events = epp.downsample_data(raw, events, **downsample_data_kwargs)
     logger.info('dropping unused channels')
-    epp.drop_unused_channels(raw)
+    epp.drop_unused_channels(raw, **drop_unused_channels_kwargs)
     logger.info('re-referencing channels')
-    epp.rereference_channels(raw)
+    epp.rereference_channels(raw, **rereference_channels_kwargs)
     logger.info('creating EOG channels')
-    epp.create_eog_channels(raw)
+    epp.create_eog_channels(raw, **create_eog_channels_kwargs)
     logger.info('setting montage')
-    epp.set_montage(raw)
+    epp.set_montage(raw, **set_montage_kwargs)
     logger.info('applying band-pass filter')
-    epp.band_pass_filter(raw)
+    epp.band_pass_filter(raw, **band_pass_filter_kwargs)
     logger.info('autodetecting bad channels')
-    epp.autodetect_bad_channels(raw, events)
+    epp.autodetect_bad_channels(raw, events, **autodetect_bad_channels_kwargs)
     logger.info('running ICA')
-    raw, ica = epp.run_ica(raw)
+    ica = epp.run_ica(raw, **run_ica_kwargs)
     logger.info('autoselect ICA')
-    epp.auto_select_ica(raw, ica)
+    epp.auto_select_ica(raw, ica, **auto_select_ica_kwargs)
     logger.info('interpolate bad channels')
-    epp.interpolate_bads(raw)
-    # Preprocessing
+    epp.interpolate_bads(raw, **interpolate_bads_kwargs)
     return raw, events, metadata
 
 
