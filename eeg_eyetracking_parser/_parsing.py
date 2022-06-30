@@ -6,6 +6,7 @@ from datamatrix import convert as cnv, io
 from datamatrix._datamatrix._seriescolumn import _SeriesColumn
 from eyelinkparser import parse, defaulttraceprocessor
 from ._triggers import trial_trigger, _parse_triggers, _validate_events
+from . import _eeg_preprocessing as epp
 
 logger = logging.getLogger('eeg_eyetracking_parser')
 
@@ -67,7 +68,6 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     logger.info(f'reading subject data from {subject_path}')
     raw, events = _read_eeg_data(subject_path / Path('eeg'), trigger_parser,
                                  eeg_margin)
-    # _trim_eeg_data(raw, events, eeg_margin)
     metadata = _read_beh_data(subject_path / Path('beh'))
     eye_path = subject_path / Path('eyetracking')
     dm = _read_eye_data(eye_path, metadata, eye_kwargs)
@@ -76,6 +76,27 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
                                      min_sacc_size, min_blink_dur, eye_kwargs)
     if metadata is None and dm is not None:
         metadata = _dm_to_metadata(dm)
+    logger.info('downsampling')
+    #epp.downsample_data(raw)
+    logger.info('dropping unused channels')
+    epp.drop_unused_channels(raw)
+    logger.info('re-referencing channels')
+    epp.rereference_channels(raw)
+    logger.info('creating EOG channels')
+    epp.create_eog_channels(raw)
+    logger.info('setting montage')
+    epp.set_montage(raw)
+    logger.info('applying band-pass filter')
+    epp.band_pass_filter(raw)
+    logger.info('autodetecting bad channels')
+    epp.autodetect_bad_channels(raw, events)
+    logger.info('running ICA')
+    raw, ica = epp.run_ica(raw)
+    logger.info('autoselect ICA')
+    epp.auto_select_ica(raw, ica)
+    logger.info('interpolate bad channels')
+    epp.interpolate_bads(raw)
+    # Preprocessing
     return raw, events, metadata
 
 
