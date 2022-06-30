@@ -20,7 +20,7 @@ Key features:
 
 - Experimental variables (such as conditions) from the eye-tracking data are used as metadata for the EEG analysis.
 - Gaze and pupil data is added as channels to the EEG data.
-- Blinks and saccades from the eye-tracking data are added as BAD annotations to the EEG data.
+- Automated preprocessing of eye-tracking and EEG data.
 
 
 ## Example
@@ -68,12 +68,11 @@ for ecc in ('near', 'medium', 'far'):
 plt.legend()
 ```
 
-Plot pupil size during the same period. Because the regular `mne.Epoch()` object doesn't play nice with non-data channels, such as PupilSize, you need to use the `eet.PupilEpochs()` class instead (which is otherwise identical). You will often want to specify `reject_by_annotation=False` to avoid trials with blinks from being excluded.
+Plot pupil size during the same period. Because the regular `mne.Epoch()` object doesn't play nice with non-data channels, such as PupilSize, you need to use the `eet.PupilEpochs()` class instead (which is otherwise identical).
 
 ```python
 cue_epoch = eet.PupilEpochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=0,
-                            tmax=3, metadata=metadata, baseline=(0, .05), 
-                            reject_by_annotation=False)
+                            tmax=3, metadata=metadata, baseline=(0, .05))
 for ecc in ('near', 'medium', 'far'):
     cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
     plt.plot(cue_evoked.data.mean(axis=0))
@@ -101,6 +100,8 @@ pip install eeg_eyetracking_parser
 
 - mne-python
 - eyelinkparser
+- autoreject
+- h5io
 
 
 ## Assumptions
@@ -128,7 +129,7 @@ data/
         beh/
             sub-02_task-attentionalbreadth_beh.csv
         # Eye-tracking data
-        eye/
+        eyetracking/
             sub-02_task-attentionalbreadth_physio.edf
 ```
 
@@ -199,7 +200,7 @@ regular data channel.
 
 
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.read&#95;subject</span>_(subject_nr, folder='data/', trigger_parser=None, eeg_margin=30, min_sacc_dur=10, min_sacc_size=30, min_blink_dur=10, eye_kwargs={})_**
+**<span style="color:purple">eeg&#95;eyetracking&#95;parser.read&#95;subject</span>_(subject_nr, folder='data/', trigger_parser=None, eeg_margin=30, min_sacc_dur=10, min_sacc_size=30, min_blink_dur=10, blink_annotation='BLINK', saccade_annotation='SACCADE', eye_kwargs={}, downsample_data_kwargs={}, drop_unused_channels_kwargs={}, rereference_channels_kwargs={}, create_eog_channels_kwargs={}, set_montage_kwargs={}, band_pass_filter_kwargs={}, autodetect_bad_channels_kwargs={}, run_ica_kwargs={}, auto_select_ica_kwargs={}, interpolate_bads_kwargs={})_**
 
 
 Reads EEG, eye-tracking, and behavioral data for a single participant.
@@ -228,12 +229,25 @@ the eye-tracking data if not.
 * min_sacc_dur: int, optional :  The minimum duration of a saccade before it is annotated as a
 	BAD_SACCADE.
 * min_sacc_size: int, optional :  The minimum size of a saccade (in pixels) before it is annotated as a
-	BAD_SACCADE.
-* min_blink_dur: int, optional :  The minimum duration of a blink before it is annotated as a
-	BAD_BLINK.
+	saccade.
+* min_blink_dur: int, optional :  The minimum duration of a blink before it is annotated as a blink.
+* blink_annotation: str, optional :  The annotation label to be used for blinks. Use a BAD_ suffix to
+	use blinks a bads annotations.
+* saccade_annotation: str, optional :  The annotation label to be used for saccades. Use a BAD_ suffix to
+	use saccades a bads annotations.
 * eye_kwargs: dict, optional :  Optional keyword arguments to be passed onto the EyeLink parser. If
 	traceprocessor is provided, a default traceprocessor is used with
 	advanced blink reconstruction enabled and 10x downsampling.
+* downsample_data_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* drop_unused_channels_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* rereference_channels_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* create_eog_channels_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* set_montage_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* band_pass_filter_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* autodetect_bad_channels_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* run_ica_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* auto_select_ica_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+* interpolate_bads_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
 
 #### Returns
 <b><i>tuple:</i></b>  A raw (EEG data), events (EEG triggers), metadata (a table with
