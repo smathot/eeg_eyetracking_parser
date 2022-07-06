@@ -1,7 +1,7 @@
 import numpy as np
 import mne
 import os
-from . import trial_trigger
+from ._triggers import trial_trigger
 from mne.preprocessing import ICA
 import autoreject as ar
 import json
@@ -160,7 +160,7 @@ def band_pass_filter(raw, lf=0.1, hf=40, plot=False):
             fig.suptitle(title)
 
 
-def downsample_data(raw, events, srate=256):
+def downsample_data(raw, events, srate=500):
     """
     Downsample EEG data for computational efficacy
 
@@ -185,8 +185,7 @@ def downsample_data(raw, events, srate=256):
     return raw, (events, event_id)
 
 
-def autodetect_bad_channels(raw, events, plot=False, output_file=False,
-                            preprocessing_path=None, eeg_scaling=20e-5):
+def autodetect_bad_channels(raw, events, plot=False, preprocessing_path=None, subject_nr=None, eeg_scaling=20e-5):
     """
     Detect bad channels using ransac algorithm
 
@@ -198,11 +197,11 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False,
         Event information as returned by `read_subject()`.
     plot: bool, optional
         True if plotting is to be done. By default, no plotting
-    output_file: bool, optional
-        True if the output file is saved. By default, no saving
     preprocessing_path: string, optional
         If the output is saved, specify the preprocessing path it will be saved
         to
+    subject_nr: int, optional
+        Specify subject_nr for saving to correct folder
     eeg_scaling: dict, optional
         Scaling with which to visualize the data, in µV
 
@@ -222,10 +221,10 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False,
     ransac = ar.Ransac()
     ransac = ransac.fit(cue_epoch)
     raw.info['bads'] = ransac.bad_chs_
-    if plot or output_file:
+    if plot or preprocessing_path is not None:
         bad_dir = os.path.join(preprocessing_path, "Bad_channels")
         subject_bad_dir = os.path.join(
-            bad_dir, 'subject_' + str(raw.info['subject_info']['id']))
+            bad_dir, 'subject_' + str(subject_nr))
         if not os.path.exists(subject_bad_dir):
             os.makedirs(subject_bad_dir)
         if plot:
@@ -239,7 +238,7 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False,
             plt.tight_layout()
             plt.savefig(os.path.join(subject_bad_dir, 'ransac_scores.png'))
             plt.show()
-        if output_file:
+        if preprocessing_path is not None:
             bads_txt_file = os.path.join(subject_bad_dir, 'bads.txt')
             raw_bads_file = os.path.join(subject_bad_dir, 'raw_bads_eeg.fif')
             with open(bads_txt_file, 'w') as f:
@@ -248,7 +247,7 @@ def autodetect_bad_channels(raw, events, plot=False, output_file=False,
 
 
 def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500,
-            random_state_set=97, output_file=False, preprocessing_path=None):
+            random_state_set=97, preprocessing_path=None, subject_nr=None):
     """
     Run ICA (independent component analysis)
     Here we use a robust and fast 'picard' method by default as a fast and
@@ -269,11 +268,11 @@ def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500,
         Maximum number of iterations
     random_state_set:int, optional
         Seed for random generator
-    output_file: bool, optional
-        True if the output file is saved. By default, no saving
     preprocessing_path: string, optional
         If the output is saved, specify the preprocessing path it will be saved
         to
+    subject_nr: int, optional
+        Specify subject_nr for saving to correct folder
 
     Returns
     -------
@@ -289,18 +288,17 @@ def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500,
     ica = ICA(n_components=n_sel_components, method=ica_method,
               max_iter=n_iter, random_state=random_state_set)
     ica.fit(raw_ica)
-    if output_file:
+    if preprocessing_path is not None:
         ica_dir = os.path.join(preprocessing_path, "ICA")
         subject_ica_dir = os.path.join(
-            ica_dir,'subject_' + str(raw.info['subject_info']['id']))
+            ica_dir,'subject_' + str(subject_nr))
         if not os.path.exists(subject_ica_dir):
             os.makedirs(subject_ica_dir)
         ica.save(os.path.join(subject_ica_dir, 'res_ica.fif'), overwrite=True)
     return ica
 
 
-def auto_select_ica(raw, ica, plot=False, output_file=False,
-                    preprocessing_path=None):
+def auto_select_ica(raw, ica, plot=False, preprocessing_path=None, subject_nr=None):
     """
     Select ICA components automatically by matching them to EOG channels
 
@@ -312,11 +310,11 @@ def auto_select_ica(raw, ica, plot=False, output_file=False,
         A result of independent component analysis
     plot: bool, optional
         True if plotting is to be done. By default, no plotting
-    output_file: bool, optional
-        True if the output file is saved. By default, no saving
     preprocessing_path: string, optional
         If the output is saved, specify the preprocessing path it will be saved
         to
+    subject_nr: int, optional
+        Specify subject_nr for saving to correct folder
 
     Returns
     -------
@@ -326,10 +324,10 @@ def auto_select_ica(raw, ica, plot=False, output_file=False,
     eog_indices, eog_scores = ica.find_bads_eog(raw)
     ica.exclude = eog_indices
     ica.apply(raw)
-    if plot:
+    if plot and preprocessing_path is not None:
         ica_dir = os.path.join(preprocessing_path, "ICA")
         subject_ica_dir = os.path.join(
-            ica_dir, 'subject_' + str(raw.info['subject_info']['id']))
+            ica_dir, 'subject_' + str(subject_nr))
         if not os.path.exists(subject_ica_dir):
             os.makedirs(subject_ica_dir)
         for ieog in eog_indices:
@@ -343,7 +341,7 @@ def auto_select_ica(raw, ica, plot=False, output_file=False,
         ica.plot_scores(eog_scores)
         plt.savefig(os.path.join(subject_ica_dir, 'ica_scores.png'))
         plt.show()
-    if output_file:
+    if preprocessing_path is not None:
         ica_txt_file = os.path.join(subject_ica_dir, 'ica_removed.txt')
         ica_components = ['ICA component ' + str(x) for x in eog_indices]
         with open(ica_txt_file, 'w') as f:
