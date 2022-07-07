@@ -132,6 +132,21 @@ data/
             sub-02_task-attentionalbreadth_physio.edf
 ```
 
+You can re-organize data files into the above structure automatically with the `data2bids` command, which is part of this package. 
+
+Assumptions:
+
+-   all EEG files (.eeg, .vhdr, .vmrk) 
+    are named in a 'Subject-00X-timestamp' format (e.g. Subject-002-[2022.06.12-14.35.46].eeg)
+-   eye-tracking files (.edf)
+    are named in a 'sub_X format' (e.g. sub_2.edf)
+    
+For example, to re-organize from participants 1, 2, 3, and 4 for a task called 'attentional-breadth', you can run the following command. This assumes that the unorganized files are in a subfolder called `data` and that the re-organized (BIDS-compatible) files are also in this subfolder, i.e. as shown above.
+
+```
+data2bids --source-path=data --target-path=data -s=1,2,3,4 -t=attentional-breadth
+```
+
 ### Trigger codes
 
 The start of each trial is indicated by a counter that starts at 128 for the first trial, and wraps around after 255, such that trial 129 is indicated again by 128. This trigger does not need to be sent to the eye tracker, which uses its own `start_trial` message. A temporal offset between the `start_trial` message of the eye tracker and the start-trial trigger of the EEG is ok, and will be compensated for during parsing.
