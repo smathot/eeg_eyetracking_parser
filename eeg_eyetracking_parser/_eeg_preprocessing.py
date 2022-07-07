@@ -156,7 +156,7 @@ def band_pass_filter(raw, lf=0.1, hf=40, plot=False):
     if plot:
         for title, data in zip(['Unfiltered', 'Bandpass filtered'],
                                [raw_unfiltered, raw]):
-            fig = data.plot_psd(fmax=250)
+            fig = data.plot_psd(fmax=min(250, raw.info['sfreq'] / 2))
             fig.suptitle(title)
 
 
@@ -185,7 +185,8 @@ def downsample_data(raw, events, srate=500):
     return raw, (events, event_id)
 
 
-def autodetect_bad_channels(raw, events, plot=False, preprocessing_path=None, subject_nr=None, eeg_scaling=20e-5):
+def autodetect_bad_channels(raw, events, plot=False, preprocessing_path=None, 
+                            subject_nr=None, eeg_scaling=20e-5):
     """
     Detect bad channels using ransac algorithm
 
@@ -230,7 +231,7 @@ def autodetect_bad_channels(raw, events, plot=False, preprocessing_path=None, su
         if plot:
             raw_bads.plot(butterfly=True, bad_color='r', scalings=eeg_scaling)
             plt.savefig(
-                os.path.join(subject_bad_dir,'raw_with_bads_ransac.png'))
+                os.path.join(subject_bad_dir, 'raw_with_bads_ransac.png'))
             plt.show()
             plt.figure(figsize=(20, 5))
             plt.bar(range(len(raw_bads.ch_names)), ransac.bad_log.mean(0))
@@ -291,14 +292,15 @@ def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500,
     if preprocessing_path is not None:
         ica_dir = os.path.join(preprocessing_path, "ICA")
         subject_ica_dir = os.path.join(
-            ica_dir,'subject_' + str(subject_nr))
+            ica_dir, 'subject_' + str(subject_nr))
         if not os.path.exists(subject_ica_dir):
             os.makedirs(subject_ica_dir)
         ica.save(os.path.join(subject_ica_dir, 'res_ica.fif'), overwrite=True)
     return ica
 
 
-def auto_select_ica(raw, ica, plot=False, preprocessing_path=None, subject_nr=None):
+def auto_select_ica(raw, ica, plot=False, preprocessing_path=None,
+                    subject_nr=None):
     """
     Select ICA components automatically by matching them to EOG channels
 
@@ -324,12 +326,14 @@ def auto_select_ica(raw, ica, plot=False, preprocessing_path=None, subject_nr=No
     eog_indices, eog_scores = ica.find_bads_eog(raw)
     ica.exclude = eog_indices
     ica.apply(raw)
-    if plot and preprocessing_path is not None:
-        ica_dir = os.path.join(preprocessing_path, "ICA")
-        subject_ica_dir = os.path.join(
-            ica_dir, 'subject_' + str(subject_nr))
-        if not os.path.exists(subject_ica_dir):
-            os.makedirs(subject_ica_dir)
+    if preprocessing_path is None:
+        return
+    ica_dir = os.path.join(preprocessing_path, "ICA")
+    subject_ica_dir = os.path.join(
+        ica_dir, 'subject_' + str(subject_nr))
+    if not os.path.exists(subject_ica_dir):
+        os.makedirs(subject_ica_dir)
+    if plot:
         for ieog in eog_indices:
             ica.plot_properties(raw, picks=ieog)
             plt.savefig(os.path.join(
@@ -341,11 +345,10 @@ def auto_select_ica(raw, ica, plot=False, preprocessing_path=None, subject_nr=No
         ica.plot_scores(eog_scores)
         plt.savefig(os.path.join(subject_ica_dir, 'ica_scores.png'))
         plt.show()
-    if preprocessing_path is not None:
-        ica_txt_file = os.path.join(subject_ica_dir, 'ica_removed.txt')
-        ica_components = ['ICA component ' + str(x) for x in eog_indices]
-        with open(ica_txt_file, 'w') as f:
-            json.dump(ica_components, f)
+    ica_txt_file = os.path.join(subject_ica_dir, 'ica_removed.txt')
+    ica_components = ['ICA component ' + str(x) for x in eog_indices]
+    with open(ica_txt_file, 'w') as f:
+        json.dump(ica_components, f)
 
 
 def interpolate_bads(raw, resetting=False):
