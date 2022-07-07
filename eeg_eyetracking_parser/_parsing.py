@@ -14,8 +14,10 @@ logger = logging.getLogger('eeg_eyetracking_parser')
 def read_subject(subject_nr, folder='data/', trigger_parser=None,
                  eeg_margin=30, min_sacc_dur=10, min_sacc_size=30,
                  min_blink_dur=10, blink_annotation='BLINK',
-                 saccade_annotation='SACCADE', eye_kwargs={},
-                 downsample_data_kwargs={}, drop_unused_channels_kwargs={},
+                 saccade_annotation='SACCADE', eeg_preprocessing=True,
+                 save_preprocessing_output=True, plot_preprocessing=True,
+                 eye_kwargs={}, downsample_data_kwargs={},
+                 drop_unused_channels_kwargs={}, 
                  rereference_channels_kwargs={}, create_eog_channels_kwargs={},
                  set_montage_kwargs={}, band_pass_filter_kwargs={},
                  autodetect_bad_channels_kwargs={}, run_ica_kwargs={},
@@ -61,6 +63,13 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     saccade_annotation: str, optional
         The annotation label to be used for saccades. Use a BAD_ suffix to
         use saccades a bads annotations.
+    eeg_preprocessing: bool, optional
+        Indicates whether EEG preprocessing should be performed.
+    save_preprocessing_output: bool, optional
+        Indicates whether output generated during EEG preprocessing should be
+        saved.
+    plot_preprocessing: bool, optional
+        Indicates whether plots should be shown during EEG preprocessing.
     eye_kwargs: dict, optional
         Optional keyword arguments to be passed onto the EyeLink parser. If
         traceprocessor is provided, a default traceprocessor is used with
@@ -109,26 +118,46 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
                                      eye_kwargs)
     if metadata is None and dm is not None:
         metadata = _dm_to_metadata(dm)
-    logger.info('downsampling')
-    raw, events = epp.downsample_data(raw, events, **downsample_data_kwargs)
-    logger.info('dropping unused channels')
-    epp.drop_unused_channels(raw, **drop_unused_channels_kwargs)
-    logger.info('re-referencing channels')
-    epp.rereference_channels(raw, **rereference_channels_kwargs)
-    logger.info('creating EOG channels')
-    epp.create_eog_channels(raw, **create_eog_channels_kwargs)
-    logger.info('setting montage')
-    epp.set_montage(raw, **set_montage_kwargs)
-    logger.info('applying band-pass filter')
-    epp.band_pass_filter(raw, **band_pass_filter_kwargs)
-    logger.info('autodetecting bad channels')
-    epp.autodetect_bad_channels(raw, events, **autodetect_bad_channels_kwargs)
-    logger.info('running ICA')
-    ica = epp.run_ica(raw, **run_ica_kwargs)
-    logger.info('autoselect ICA')
-    epp.auto_select_ica(raw, ica, **auto_select_ica_kwargs)
-    logger.info('interpolate bad channels')
-    epp.interpolate_bads(raw, **interpolate_bads_kwargs)
+    if eeg_preprocessing:
+        # Preprocessing output can be saved for visual inspection. By default
+        # this is done in a subfolder of the participant data folder. This
+        # only applies to certain preprocessing steps, i.e. those functions
+        # that take a `preprocessing_path` keyword.
+        if save_preprocessing_output:
+            preprocessing_path = subject_path / Path('preprocessing')
+            logger.info(f'saving preprocessing output to {preprocessing_path}')
+            autodetect_bad_channels_kwargs['preprocessing_path'] = \
+                preprocessing_path
+            run_ica_kwargs['preprocessing_path'] = preprocessing_path
+            auto_select_ica_kwargs['preprocessing_path'] = preprocessing_path
+        if plot_preprocessing:
+            logger.info(f'creating plots during preprocessing')
+            set_montage_kwargs['plot'] = True
+            band_pass_filter_kwargs['plot'] = True
+            autodetect_bad_channels_kwargs['plot'] = True
+            auto_select_ica_kwargs['plot'] = True
+        logger.info('downsampling')
+        raw, events = epp.downsample_data(raw, events,
+                                          **downsample_data_kwargs)
+        logger.info('dropping unused channels')
+        epp.drop_unused_channels(raw, **drop_unused_channels_kwargs)
+        logger.info('re-referencing channels')
+        epp.rereference_channels(raw, **rereference_channels_kwargs)
+        logger.info('creating EOG channels')
+        epp.create_eog_channels(raw, **create_eog_channels_kwargs)
+        logger.info('setting montage')
+        epp.set_montage(raw, **set_montage_kwargs)
+        logger.info('applying band-pass filter')
+        epp.band_pass_filter(raw, **band_pass_filter_kwargs)
+        logger.info('autodetecting bad channels')
+        epp.autodetect_bad_channels(raw, events,
+                                    **autodetect_bad_channels_kwargs)
+        logger.info('running ICA')
+        ica = epp.run_ica(raw, **run_ica_kwargs)
+        logger.info('autoselect ICA')
+        epp.auto_select_ica(raw, ica, **auto_select_ica_kwargs)
+        logger.info('interpolate bad channels')
+        epp.interpolate_bads(raw, **interpolate_bads_kwargs)
     return raw, events, metadata
 
 
