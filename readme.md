@@ -199,7 +199,7 @@ regular data channel.
 
 
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.read&#95;subject</span>_(subject_nr, folder='data/', trigger_parser=None, eeg_margin=30, min_sacc_dur=10, min_sacc_size=30, min_blink_dur=10, blink_annotation='BLINK', saccade_annotation='SACCADE', eye_kwargs={}, downsample_data_kwargs={}, drop_unused_channels_kwargs={}, rereference_channels_kwargs={}, create_eog_channels_kwargs={}, set_montage_kwargs={}, band_pass_filter_kwargs={}, autodetect_bad_channels_kwargs={}, run_ica_kwargs={}, auto_select_ica_kwargs={}, interpolate_bads_kwargs={})_**
+**<span style="color:purple">eeg&#95;eyetracking&#95;parser.read&#95;subject</span>_(subject_nr, folder='data/', trigger_parser=None, eeg_margin=30, min_sacc_dur=10, min_sacc_size=30, min_blink_dur=10, blink_annotation='BLINK', saccade_annotation='SACCADE', eeg_preprocessing=True, save_preprocessing_output=True, plot_preprocessing=True, eye_kwargs={}, downsample_data_kwargs={}, drop_unused_channels_kwargs={}, rereference_channels_kwargs={}, create_eog_channels_kwargs={}, set_montage_kwargs={}, band_pass_filter_kwargs={}, autodetect_bad_channels_kwargs={}, run_ica_kwargs={}, auto_select_ica_kwargs={}, interpolate_bads_kwargs={})_**
 
 
 Reads EEG, eye-tracking, and behavioral data for a single participant.
@@ -234,6 +234,10 @@ the eye-tracking data if not.
 	use blinks a bads annotations.
 * saccade_annotation: str, optional :  The annotation label to be used for saccades. Use a BAD_ suffix to
 	use saccades a bads annotations.
+* eeg_preprocessing: bool, optional :  Indicates whether EEG preprocessing should be performed.
+* save_preprocessing_output: bool, optional :  Indicates whether output generated during EEG preprocessing should be
+	saved.
+* plot_preprocessing: bool, optional :  Indicates whether plots should be shown during EEG preprocessing.
 * eye_kwargs: dict, optional :  Optional keyword arguments to be passed onto the EyeLink parser. If
 	traceprocessor is provided, a default traceprocessor is used with
 	advanced blink reconstruction enabled and 10x downsampling.
