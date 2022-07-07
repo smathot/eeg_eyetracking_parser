@@ -156,7 +156,7 @@ Triggers should only be used for temporal information. Conditions are only logge
 
 ``` { .python silent }
 import sys, os
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.getcwd())
 import eeg_eyetracking_parser as eet
 from npdoc_to_md import render_md_from_obj_docstring
 
