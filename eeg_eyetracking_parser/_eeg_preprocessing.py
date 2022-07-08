@@ -125,7 +125,7 @@ def notch_filter(raw, frequencies_remove=(50, 100, 150, 200)):
     raw: instance of raw EEG data
         A raw EEG data with certain frequencies that were filtered out
     """
-    raw.notch_filter(frequencies_remove)
+    raw.notch_filter(frequencies_remove, picks=['eeg', 'eog'])
 
 
 def band_pass_filter(raw, lf=0.1, hf=40, plot=False):
@@ -152,7 +152,7 @@ def band_pass_filter(raw, lf=0.1, hf=40, plot=False):
     """
     if plot:
         raw_unfiltered = raw.copy()
-    raw.filter(l_freq=lf, h_freq=hf, picks='all')
+    raw.filter(l_freq=lf, h_freq=hf, picks=['eeg', 'eog'])
     if plot:
         for title, data in zip(['Unfiltered', 'Bandpass filtered'],
                                [raw_unfiltered, raw]):
