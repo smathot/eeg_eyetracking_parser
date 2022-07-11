@@ -7,6 +7,6 @@ from ._parsing import read_subject
 from ._pupil_epochs import PupilEpochs, epochs_to_series
 
 
-__version__ = '0.3.1'
+__version__ = '0.4.0'
 logger = logging.getLogger('eeg_eyetracking_parser')
 logger.info(f'eeg_eyetracking_parser {__version__}')
