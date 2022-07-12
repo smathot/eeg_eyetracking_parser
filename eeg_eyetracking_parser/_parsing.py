@@ -326,7 +326,7 @@ def _read_eeg_data(eeg_path, trigger_parser, margin):
         logger.info('no eeg data detected')
         return None, None
     vhdr_path = list(eeg_path.glob('*.vhdr'))[0]
-    logger.info('loading eeg data from {vhdr_path}')
+    logger.info(f'loading eeg data from {vhdr_path}')
     raw = mne.io.read_raw_brainvision(vhdr_path, preload=True)
     if raw.info['sfreq'] != 1000:
         logger.warning(
