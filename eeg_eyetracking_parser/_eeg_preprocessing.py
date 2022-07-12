@@ -160,7 +160,7 @@ def band_pass_filter(raw, lf=0.1, hf=40, plot=False):
             fig.suptitle(title)
 
 
-def downsample_data(raw, events, srate=500):
+def downsample_data(raw, events, srate=250):
     """
     Downsample EEG data for computational efficacy
 
