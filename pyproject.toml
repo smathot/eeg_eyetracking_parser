@@ -17,7 +17,8 @@ dependencies = [
     "python-eyelinkparser",
     "mne",
     "autoreject",
-    "h5io"
+    "h5io",
+    "braindecode"
 ]
 requires-python = ">=3.5"
 dynamic = ["version", "description"]
