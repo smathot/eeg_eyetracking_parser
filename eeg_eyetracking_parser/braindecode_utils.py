@@ -1,16 +1,20 @@
 """A set of functions to facilitate working with braindecode"""
 import random
+import mne
 import copy
 import itertools
+import logging
 from collections.abc import Sequence
 import collections
 collections.Sequence = Sequence  # for compatibility with Skorch
 from matplotlib import pyplot as plt
 import numpy as np
+from scipy.stats import mode
 import pandas as pd
 from matplotlib.lines import Line2D
 from sklearn.metrics import confusion_matrix
 import torch
+from datamatrix import functional as fnc, DataMatrix, operations as ops
 from skorch.callbacks import LRScheduler
 from skorch.helper import predefined_split
 from braindecode.datasets import create_from_mne_epochs
@@ -22,6 +26,144 @@ from braindecode.models import ShallowFBCSPNet, to_dense_prediction_model, \
     get_output_shape
 from braindecode.preprocessing import Preprocessor, \
     exponential_moving_standardize
+from . import read_subject, epoch_trigger
+
+logger = logging.getLogger('eeg_eyetracking_parser')
+
+
+@fnc.memoize(persistent=True)
+def decode_subject(subject_nr, factors, epochs_kwargs, trigger,
+                   epochs_query='practice == "no"', epochs=4, lesions=None,
+                   window_size=200, window_stride=1, n_fold=4, folder='data'):
+    """The main entry point for decoding a subject's data.
+    
+    Parameters
+    ----------
+    subject_nr: int
+        The subject number
+    factors: list of str
+        A list of factors that should be decoded. Factors should be str and
+        match column names in the metadata. If there is more than one factor,
+        each factor should have two levels.
+    epochs_kwargs: dict
+        A dict with keyword arguments that are passed to mne.Epochs() to
+        extract the to-be-decoded epoch.
+    trigger: int
+        The trigger code that defines the to-be-decoded epoch.
+    epochs_query: str, optional
+        A pandas-style query to select trials from the to-be-decoded epoch. The
+        default assumes that there is a `practice` column from which we only
+        want to have the 'no' values, i.e. that we want exclude practice
+        trials.
+    epochs: int, optional
+        The number of training epochs, i.e. the number of times that the data
+        is fed into the model
+    lesions: list of tuple or str
+        A list of time windows or electrode names to be set to 0 during
+        testing. A separate prediction is made for each lesion. Time windows
+        are (start, end) tuples in sample units. Electrode names are strings.
+    window_size_samples: int
+        The length of the window to sample from the Epochs object. This should
+        be slightly shorter than the actual Epochs to allow for jittered
+        samples to be taken from the purpose of 'cropped decoding'.
+    window_stride_samples: int
+        The number of samples to jitter around the window for the purpose of
+        cropped decoding.
+    n_fold: int
+        The total number of splits (or folds)
+    folder: str
+        The folder in which the participant data is stored.
+        
+    Returns
+    -------
+    dict
+        A dict where keys are labels with 'overall' corresponding to the
+        overall (unlesioned) test, and the other keys corresponding to the
+        lesions as provided by the lesions parameter. Values are confusion
+        matrices with shape (n_conditions, n_conditions) where the first
+        dimension is the real label, and the second dimension is the predicted
+        label.
+    """
+    dataset, labels, metadata = read_decode_dataset(
+        subject_nr, factors, epochs_kwargs, trigger, epochs_query,
+        window_size=window_size, window_stride=window_stride, folder=folder)
+    n_conditions = len(labels)
+    results = {}
+    results['overall'] = np.zeros((n_conditions, n_conditions))
+    predictions = DataMatrix(length=0)
+    for fold in range(n_fold):
+        logger.info(f'subject {subject_nr}, fold {fold}')
+        train_data, test_data = split_dataset(
+            dataset, fold=fold)
+        clf = train(train_data, test_data, epochs=epochs)
+        logger.info('Testing on complete data')
+        results['overall'] += summarize_accuracy(clf, test_data, factors,
+                                                 labels)
+        # We want to know which trial was predicted to have which label. For
+        # that reason, we create a datamatrix with true and predicted labels.
+        # These are not in the original order, so we also store timestamps
+        # so that later we can sort the datamatrix back into the original order
+        y_pred = clf.predict(test_data)
+        y_pred.resize((len(test_data.datasets), len(test_data.datasets[0])))
+        fold_predictions = DataMatrix(length=len(test_data.datasets))
+        fold_predictions.y_true = [d.y[0] for d in test_data.datasets]
+        fold_predictions.y_pred = mode(y_pred, axis=1)[0].flatten()
+        fold_predictions.timestamp = [
+            d.windows.metadata.i_start_in_trial[0]
+            for d in test_data.datasets
+        ]
+        predictions <<= fold_predictions
+        if lesions is None:
+            continue
+        for lesion in lesions:
+            logger.info(f'Testing on lesioned data ({lesion})')
+            dataset, labels, _ = read_decode_dataset(
+                subject_nr, factors, epochs_kwargs, trigger, epochs_query,
+                lesion=lesion, window_size=window_size,
+                window_stride=window_stride, folder=folder)
+            _, lesioned_test_data = split_dataset(dataset, fold=fold)
+            if lesion not in results:
+                results[lesion] = np.zeros((n_conditions, n_conditions))
+            results[lesion] += summarize_accuracy(
+                clf, lesioned_test_data, factors, labels)
+    # Add the true and predicted labels as new columns to the metadata
+    predictions = ops.sort(predictions, by=predictions.timestamp)
+    metadata = metadata.assign(braindecode_label=list(predictions.y_true),
+                               braindecode_prediction=list(predictions.y_pred))
+    return results, metadata
+
+
+def read_decode_dataset(subject_nr, factors, epochs_kwargs, trigger,
+                        epochs_query, lesion=None, window_size=200,
+                        window_stride=1, folder='data'):
+    """Reads a dataset and converts it to a format that is suitable for
+    braindecode.
+    """
+    raw, events, metadata = _read_decode_subject(
+        subject_nr, folder=folder, save_preprocessing_output=False,
+        plot_preprocessing=False)
+    epochs = mne.Epochs(raw, epoch_trigger(events, trigger),
+                        metadata=metadata, **epochs_kwargs)
+    epochs = epochs[epochs_query]
+    metadata = metadata.query(epochs_query)
+    if isinstance(lesion, tuple):
+        epochs._data[:, :, lesion[0]:lesion[1]] = 0
+    elif isinstance(lesion, str):
+        epochs._data[:, epochs.ch_names.index(lesion)] = 0
+    dataset, labels = build_dataset(
+        epochs, metadata, factors, window_size_samples=window_size,
+        window_stride_samples=window_stride)
+    return dataset, labels, metadata
+
+
+@fnc.memoize(persistent=True)
+def _read_decode_subject(*args, **kwargs):
+    """A simple memoized wrapper around read_subject(). Also applies
+    braindecode-appropriate preprocessing.
+    """
+    raw, events, metadata = read_subject(*args, **kwargs)
+    preprocess_raw(raw)
+    return raw, events, metadata
 
 
 def preprocess_raw(raw, l_freq=4, h_freq=30, factor_new=1e-3,
@@ -262,22 +404,25 @@ def build_confusion_matrix(clf, test_set):
 
 def summarize_confusion_matrix(factors, confusion_mat):
     """Determines overall classification accuracy, as well as classification
-    accuracy per factor for a confusion matrix. This assumes that each factor
-    has two levels.
-    
+    accuracy per factor for a confusion matrix. If there is more than one
+    factor, each factor is assumed to have two levels.
+
     Parameters
     ----------
     factors: list
         A list of factor labels
     confusion_mat: array
         A confusion matrix as returned by build_confusion_matrix()
-        
+
     Returns
     -------
     list
         A list of accuracies, where the first element is the overall accuracy
         and subsequent elements correspond to the factors.
     """
+    if len(factors) == 1:
+        model = np.identity(confusion_mat.shape[0])
+        return [100 * np.sum(model * confusion_mat) / np.sum(confusion_mat)]
     model = np.identity(2 ** len(factors))
     accuracies = []
     acc = 100 * np.sum(model * confusion_mat) / np.sum(confusion_mat)
@@ -320,8 +465,8 @@ def summarize_accuracy(clf, test_set, factors, labels, plot=False):
     confusion_mat = build_confusion_matrix(clf, test_set)
     if plot:
         plot_confusion_matrix(confusion_mat, labels, rotate_col_labels=45,
-                            rotate_row_labels=45, figsize=(12, 12))
+                              rotate_row_labels=45, figsize=(12, 12))
     for factor, acc in zip(['overall'] + factors,
                            summarize_confusion_matrix(factors, confusion_mat)):
-        print('acc({}): {:.2f} %'.format(factor, acc))
+        logger.info('acc({}): {:.2f} %'.format(factor, acc))
     return confusion_mat
