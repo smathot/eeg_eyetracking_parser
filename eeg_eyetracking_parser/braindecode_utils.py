@@ -76,13 +76,21 @@ def decode_subject(subject_nr, factors, epochs_kwargs, trigger,
         
     Returns
     -------
-    dict
-        A dict where keys are labels with 'overall' corresponding to the
-        overall (unlesioned) test, and the other keys corresponding to the
+    tuple
+        A (results, metadata) tuple.
+        
+        
+        Results is a dict where keys are labels with 'overall' corresponding to
+        the overall (unlesioned) test, and the other keys corresponding to the
         lesions as provided by the lesions parameter. Values are confusion
         matrices with shape (n_conditions, n_conditions) where the first
         dimension is the real label, and the second dimension is the predicted
         label.
+        
+        Metadata is a DataFrame corresponding to the dataset's metadata plus
+        two additional columns: braindecode_label is numeric label that encodes
+        the to-be-decoded factor, and braindecode_prediction is the predicted
+        label. Rows where these two columns match were correctly decoded.
     """
     dataset, labels, metadata = read_decode_dataset(
         subject_nr, factors, epochs_kwargs, trigger, epochs_query,
@@ -97,22 +105,24 @@ def decode_subject(subject_nr, factors, epochs_kwargs, trigger,
             dataset, fold=fold)
         clf = train(train_data, test_data, epochs=epochs)
         logger.info('Testing on complete data')
-        results['overall'] += summarize_accuracy(clf, test_data, factors,
-                                                 labels)
         # We want to know which trial was predicted to have which label. For
         # that reason, we create a datamatrix with true and predicted labels.
         # These are not in the original order, so we also store timestamps
         # so that later we can sort the datamatrix back into the original order
         y_pred = clf.predict(test_data)
-        y_pred.resize((len(test_data.datasets), len(test_data.datasets[0])))
+        resized_pred = y_pred.copy()
+        resized_pred.resize(
+            (len(test_data.datasets), len(test_data.datasets[0])))
         fold_predictions = DataMatrix(length=len(test_data.datasets))
         fold_predictions.y_true = [d.y[0] for d in test_data.datasets]
-        fold_predictions.y_pred = mode(y_pred, axis=1)[0].flatten()
+        fold_predictions.y_pred = mode(resized_pred, axis=1)[0].flatten()
         fold_predictions.timestamp = [
             d.windows.metadata.i_start_in_trial[0]
             for d in test_data.datasets
         ]
         predictions <<= fold_predictions
+        results['overall'] += summarize_accuracy(clf, test_data, factors,
+                                                 labels, y_pred)
         if lesions is None:
             continue
         for lesion in lesions:
@@ -376,7 +386,7 @@ def train(train_set, test_set=None, epochs=4, batch_size=32, lr=0.000625,
     return clf
 
 
-def build_confusion_matrix(clf, test_set):
+def build_confusion_matrix(clf, test_set, y_pred=None):
     """Builds a confusion matrix for the predicted and actual labels of a test
     set.
     
@@ -386,6 +396,9 @@ def build_confusion_matrix(clf, test_set):
         A trained EEG classifier
     test_set: BaseDataSet
         A test dataset
+    y_pred: array, optional
+        An array with predictions. If not provided, the predictions will be
+        generated.
         
     Returns
     -------
@@ -398,7 +411,8 @@ def build_confusion_matrix(clf, test_set):
     for d in test_set.datasets:
         y_true += d.y
     y_true = np.array(y_true)
-    y_pred = clf.predict(test_set)
+    if y_pred is None:
+        y_pred = clf.predict(test_set)
     return confusion_matrix(y_true, y_pred)
 
 
@@ -437,7 +451,8 @@ def summarize_confusion_matrix(factors, confusion_mat):
     return accuracies
 
 
-def summarize_accuracy(clf, test_set, factors, labels, plot=False):
+def summarize_accuracy(clf, test_set, factors, labels, y_pred=None,
+                       plot=False):
     """A convenience function built on top of build_confusion_matrix() and
     summarize_confusion_matrix() 
     
@@ -452,6 +467,9 @@ def summarize_accuracy(clf, test_set, factors, labels, plot=False):
     labels: list
         A list of labels for each combination of factors, as returned by
         split_epochs()
+    y_pred: array, optional
+        An array with predictions. If not provided, the predictions will be
+        generated.
     plot: bool, optional
         Indicates whether a confusion-matrix plot should be created
         
@@ -462,7 +480,7 @@ def summarize_accuracy(clf, test_set, factors, labels, plot=False):
         axis, the predicted labels as the second axis, and the number of
         prediction in each cell as the values
     """
-    confusion_mat = build_confusion_matrix(clf, test_set)
+    confusion_mat = build_confusion_matrix(clf, test_set, y_pred=y_pred)
     if plot:
         plot_confusion_matrix(confusion_mat, labels, rotate_col_labels=45,
                               rotate_row_labels=45, figsize=(12, 12))
