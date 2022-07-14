@@ -2,7 +2,7 @@ import numpy as np
 import mne
 import os
 from ._triggers import trial_trigger
-from mne.preprocessing import ICA
+from mne.preprocessing import ICA, annotate_muscle_zscore
 import autoreject as ar
 import json
 import matplotlib.pyplot as plt
@@ -108,6 +108,48 @@ def set_montage(raw, montage_name='standard_1020', plot=False):
         raw.set_channel_types({'Digi': 'stim'})
     raw.set_montage(montage, match_case=False)
 
+def annotate_emg(raw, threshold=5, ch_type="eeg", muscle_frequencies=[110, 140],
+                 plot=False, preprocessing_path=None, subject_nr=None):
+    """
+    Annotate segments of data that represent muscle artifacts
+
+    Parameters
+    ----------
+    raw: instance of raw EEG data
+        A raw EEG data
+    threshold: float, optional
+        The threshold in z-scores for marking data as muscle artifacts
+    ch_type: string, optional
+        Type of channels we select, here - eeg
+    muscle_frequencies: list, optional
+        Frequencies of bandpass filter, as muscle artifacts are noticable primarily at high frequencies
+    plot: bool, optional
+        True if plotting is to be done. By default, no plotting
+    preprocessing_path: string, optional
+        If the output is saved, specify the preprocessing path it will be saved
+        to
+    subject_nr: int, optional
+        Specify subject_nr for saving to correct folder
+
+    Returns
+    -------
+    raw: instance of raw EEG data
+        A raw EEG data with segments of data annototed with regard to muscle artifacts
+    """
+    muscle_annotations, muscle_scores = annotate_muscle_zscore(raw, ch_type=ch_type,
+                                                               threshold=threshold, filter_freq=muscle_frequencies)
+    raw.set_annotations(muscle_annotations)
+    if plot and preprocessing_path is not None:
+        emg_dir = os.path.join(preprocessing_path, "EMG")
+        subject_emg_dir = os.path.join(emg_dir, 'subject_' + str(subject_nr))
+        if not os.path.exists(subject_emg_dir):
+            os.makedirs(subject_emg_dir)
+        fig, ax = plt.subplots()
+        ax.plot(raw.times, muscle_scores)
+        ax.axhline(y=threshold, color='blue')
+        ax.set(xlabel='time in s', ylabel='zscore')
+        plt.savefig(os.path.join(subject_emg_dir, 'muscle_annotations_zscore.png'))
+        plt.show()
 
 def notch_filter(raw, frequencies_remove=(50, 100, 150, 200)):
     """
@@ -280,6 +322,7 @@ def run_ica(raw, lf=1, sel_components='all', ica_method='picard', n_iter=500,
         A result of independent component analysis
     """
     raw_ica = raw.copy().filter(l_freq=lf, h_freq=None)
+
     if sel_components == 'all':
         picks = mne.pick_types(raw.info, eeg=True)
         n_sel_components = len(picks)
