@@ -3,6 +3,8 @@ import logging
 import numpy as np
 from datamatrix._datamatrix._seriescolumn import _SeriesColumn
 from datamatrix import series as srs, NAN, operations as ops
+import autoreject as ar
+import os
 
 logger = logging.getLogger('eeg_eyetracking_parser')
 
@@ -18,6 +20,28 @@ class PupilEpochs(mne.Epochs):
         super().__init__(*args, **kwargs, picks='PupilSize')
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
         
+    def average(self, *args, **kwargs):
+        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
+        evoked = super().average(*args, **kwargs)
+        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
+        return evoked
+
+
+class EegEpochs(mne.Epochs):
+    """An Epochs class for the EEG data. This allows baseline
+    correction to be applied to EEG data and automatic rejection of artifacts.
+    """
+
+    def __init__(self, *args, **kwargs):
+        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
+        super().__init__(*args, **kwargs, picks='eeg')
+        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
+
+    def autoreject_artifacts(self, n_interpolate=[1, 4, 8, 16], *args, **kwargs):
+        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
+        AR = ar.AutoReject(n_interpolate=n_interpolate, *args, **kwargs)
+        AR.fit_transform(self)
+
     def average(self, *args, **kwargs):
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
         evoked = super().average(*args, **kwargs)
