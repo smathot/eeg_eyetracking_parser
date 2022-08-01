@@ -28,13 +28,13 @@ class PupilEpochs(mne.Epochs):
 
 
 class EegEpochs(mne.Epochs):
-    """An Epochs class for the EEG data. This allows baseline
-    correction to be applied to EEG data and automatic rejection of artifacts.
+     """An Epochs class for the EEG data. This allows automatic rejection of artifacts.
     """
+
 
     def __init__(self, *args, **kwargs):
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
-        super().__init__(*args, **kwargs, picks='eeg')
+        super().__init__(*args, **kwargs, picks='eeg', preload=True)
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
 
     def autoreject_artifacts(self, n_interpolate=[1, 4, 8, 16], *args, **kwargs):
