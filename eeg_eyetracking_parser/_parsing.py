@@ -17,7 +17,7 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
                  saccade_annotation='SACCADE', eye_kwargs={},
                  downsample_data_kwargs={}, drop_unused_channels_kwargs={},
                  rereference_channels_kwargs={}, create_eog_channels_kwargs={},
-                 set_montage_kwargs={}, band_pass_filter_kwargs={},
+                 set_montage_kwargs={}, annotate_emg_kwargs={}, band_pass_filter_kwargs={},
                  autodetect_bad_channels_kwargs={}, run_ica_kwargs={},
                  auto_select_ica_kwargs={}, interpolate_bads_kwargs={}):
     """Reads EEG, eye-tracking, and behavioral data for a single participant.
@@ -75,6 +75,8 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
         Passed as keyword arguments to corresponding preprocessing function.
     set_montage_kwargs: dict, optional
         Passed as keyword arguments to corresponding preprocessing function.
+    annotate_emg_kwargs: dict, optional
+         Passed as keyword arguments to corresponding preprocessing function.
     band_pass_filter_kwargs: dict, optional
         Passed as keyword arguments to corresponding preprocessing function.
     autodetect_bad_channels_kwargs: dict, optional
@@ -120,6 +122,8 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     logger.info('setting montage')
     epp.set_montage(raw, **set_montage_kwargs)
     logger.info('applying band-pass filter')
+    epp.annotate_emg(raw, **annotate_emg_kwargs)
+    logger.info('applying muscle artifact detection')
     epp.band_pass_filter(raw, **band_pass_filter_kwargs)
     logger.info('autodetecting bad channels')
     epp.autodetect_bad_channels(raw, events, **autodetect_bad_channels_kwargs)
