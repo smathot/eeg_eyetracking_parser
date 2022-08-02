@@ -138,7 +138,7 @@ def annotate_emg(raw, threshold=5, ch_type="eeg", muscle_frequencies=[110, 140],
     """
     muscle_annotations, muscle_scores = annotate_muscle_zscore(raw, ch_type=ch_type,
                                                                threshold=threshold, filter_freq=muscle_frequencies)
-    raw.set_annotations(muscle_annotations)
+    raw.set_annotations(raw.annotations + muscle_annotations)
     if plot and preprocessing_path is not None:
         emg_dir = os.path.join(preprocessing_path, "EMG")
         subject_emg_dir = os.path.join(emg_dir, 'subject_' + str(subject_nr))
