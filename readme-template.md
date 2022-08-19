@@ -50,17 +50,18 @@ raw, events, metadata = read_subject(2)
 ```
 
 
-Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`.
+Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`. The function `eet.autoreject_epochs()` behaves similarly to `mne.Epochs()`, except that autorejection is applied.
 
 ```python
 import mne
 from matplotlib import pyplot as plt
 
 CUE_TRIGGER = 1
-CHANNELS = 'O1', 'O2', 'P3', 'P4'
+CHANNELS = 'O1', 'O2', 'Oz', 'P3', 'P4'
 
-cue_epoch = mne.Epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=-.1,
-                       tmax=3, metadata=metadata, picks=CHANNELS)
+cue_epoch = eet.autoreject_epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER),
+                                  tmin=-.1, tmax=3, metadata=metadata,
+                                  picks=CHANNELS)
 for ecc in ('near', 'medium', 'far'):
     cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
     plt.plot(cue_evoked.data.mean(axis=0), label=ecc)
@@ -173,17 +174,19 @@ Triggers should only be used for temporal information. Conditions are only logge
 import sys, os
 sys.path.insert(0, os.getcwd())
 import eeg_eyetracking_parser as eet
-from npdoc_to_md import render_md_from_obj_docstring
+from npdoc_to_md import render_obj_docstring
 
-print(render_md_from_obj_docstring(eet.epochs_to_series, 'eeg_eyetracking_parser.epochs_to_series'))
+print(render_obj_docstring('eeg_eyetracking_parser.epochs_to_series'))
 print('\n\n')
-print(render_md_from_obj_docstring(eet.epoch_trigger, 'eeg_eyetracking_parser.epoch_trigger'))
+print(render_obj_docstring('eeg_eyetracking_parser.epoch_trigger'))
 print('\n\n')
-print(render_md_from_obj_docstring(eet.PupilEpochs, 'eeg_eyetracking_parser.PupilEpochs'))
+print(render_obj_docstring('eeg_eyetracking_parser.PupilEpochs'))
 print('\n\n')
-print(render_md_from_obj_docstring(eet.read_subject, 'eeg_eyetracking_parser.read_subject'))
+print(render_obj_docstring('eeg_eyetracking_parser.autoreject_epochs'))
 print('\n\n')
-print(render_md_from_obj_docstring(eet.trial_trigger, 'eeg_eyetracking_parser.trial_trigger'))
+print(render_obj_docstring('eeg_eyetracking_parser.read_subject'))
+print('\n\n')
+print(render_obj_docstring('eeg_eyetracking_parser.trial_trigger'))
 ```
 
 

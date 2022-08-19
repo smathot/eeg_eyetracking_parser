@@ -50,17 +50,18 @@ raw, events, metadata = read_subject(2)
 ```
 
 
-Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`.
+Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`. The function `eet.autoreject_epochs()` behaves similarly to `mne.Epochs()`, except that autorejection is applied.
 
 ```python
 import mne
 from matplotlib import pyplot as plt
 
 CUE_TRIGGER = 1
-CHANNELS = 'O1', 'O2', 'P3', 'P4'
+CHANNELS = 'O1', 'O2', 'Oz', 'P3', 'P4'
 
-cue_epoch = mne.Epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=-.1,
-                       tmax=3, metadata=metadata, picks=CHANNELS)
+cue_epoch = eet.autoreject_epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER),
+                                  tmin=-.1, tmax=3, metadata=metadata,
+                                  picks=CHANNELS)
 for ecc in ('near', 'medium', 'far'):
     cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
     plt.plot(cue_evoked.data.mean(axis=0), label=ecc)
@@ -169,8 +170,7 @@ Triggers should only be used for temporal information. Conditions are only logge
 
 ## Function reference
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.epochs&#95;to&#95;series</span>_(dm, epochs, baseline_trim=(-2, 2))_**
-
+## <span style="color:purple">eeg\_eyetracking\_parser.epochs\_to\_series</span>_(dm, epochs, baseline\_trim=(-2, 2))_
 
 Takes an Epochs or PupilEpochs object and converts it to a DataMatrix
 SeriesColumn. If a baseline has been specified in the epoch, it is applied
@@ -178,35 +178,50 @@ to each row of the series separately. Rows where the mean baseline value
 (z-scored) is not within the range indicated by `baseline_trim` are set to
 `NAN`.
 
+### Parameters
 
-#### Parameters
-* dm: DataMatrix :  A DataMatrix object to which the series belongs
-* epochs: Epochs or PupilEpochs :  The source object with the epoch data.
-* baseline_trim: tuple of int, optional :  The range of acceptable baseline values. This refers to z-scores.
+* **dm: DataMatrix**
 
-#### Returns
-<b><i>SeriesColumn</i></b>
+  A DataMatrix object to which the series belongs
+
+* **epochs: Epochs or PupilEpochs**
+
+  The source object with the epoch data.
+
+* **baseline\_trim: tuple of int, optional**
+
+  The range of acceptable baseline values. This refers to z-scores.
+
+### Returns
+
+* **_SeriesColumn_**
 
 
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.epoch&#95;trigger</span>_(events, trigger)_**
-
+## <span style="color:purple">eeg\_eyetracking\_parser.epoch\_trigger</span>_(events, trigger)_
 
 Selects a single epoch trigger from a tuple with event information.
 Epoch triggers have values between 1 and 127 (inclusive).
 
+### Parameters
 
-#### Parameters
-* events: tuple :  Event information as returned by `read_subject()`.
-* trigger: int :  A trigger code, which is a positive value.
+* **events: tuple**
 
-#### Returns
-<b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
+  Event information as returned by `read_subject()`.
+
+* **trigger: int**
+
+  A trigger code, which is a positive value.
+
+### Returns
+
+* **_array:_**
+
+  A numpy array with events as expected by mne.Epochs().
 
 
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.PupilEpochs</span>_(*args, **kwargs)_**
-
+## <span style="color:purple">eeg\_eyetracking\_parser.PupilEpochs</span>_(\*args, \*\*kwargs)_
 
 An Epochs class for the PupilSize channel. This allows baseline
 correction to be applied to pupil size, even though this channel is not a
@@ -214,12 +229,38 @@ regular data channel.
 
 
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.read&#95;subject</span>_(subject_nr, folder='data/', trigger_parser=None, eeg_margin=30, min_sacc_dur=10, min_sacc_size=30, min_blink_dur=10, blink_annotation='BLINK', saccade_annotation='SACCADE', eeg_preprocessing=True, save_preprocessing_output=True, plot_preprocessing=True, eye_kwargs={}, downsample_data_kwargs={}, drop_unused_channels_kwargs={}, rereference_channels_kwargs={}, create_eog_channels_kwargs={}, set_montage_kwargs={}, band_pass_filter_kwargs={}, autodetect_bad_channels_kwargs={}, run_ica_kwargs={}, auto_select_ica_kwargs={}, interpolate_bads_kwargs={})_**
+## <span style="color:purple">eeg\_eyetracking\_parser.autoreject\_epochs</span>_(\*args, ar\_kwargs=None, \*\*kwargs)_
 
+A factory function that creates an Epochs() object, applies
+autorejection, and then returns it.
+
+### Parameters
+
+* **\*args: iterable**
+
+  Arguments passed to mne.Epochs()
+
+* **ar\_kwargs: dict or None, optional**
+
+  Keywords to be passed to AutoReject(). If `n_interpolate` is not
+  specified, a default value of [1, 4, 8, 16] is used.
+
+* **\*\*kwargs: dict**
+
+  Keywords passed to mne.Epochs()
+
+### Returns
+
+* **_Epochs:_**
+
+  An mne.Epochs() object with autorejection applied.
+
+
+
+## <span style="color:purple">eeg\_eyetracking\_parser.read\_subject</span>_(subject\_nr, folder='data/', trigger\_parser=None, eeg\_margin=30, min\_sacc\_dur=10, min\_sacc\_size=30, min\_blink\_dur=10, blink\_annotation='BLINK', saccade\_annotation='SACCADE', eeg\_preprocessing=True, save\_preprocessing\_output=True, plot\_preprocessing=True, eye\_kwargs={}, downsample\_data\_kwargs={}, drop\_unused\_channels\_kwargs={}, rereference\_channels\_kwargs={}, create\_eog\_channels\_kwargs={}, set\_montage\_kwargs={}, annotate\_emg\_kwargs={}, band\_pass\_filter\_kwargs={}, autodetect\_bad\_channels\_kwargs={}, run\_ica\_kwargs={}, auto\_select\_ica\_kwargs={}, interpolate\_bads\_kwargs={})_
 
 Reads EEG, eye-tracking, and behavioral data for a single participant.
 This data should be organized according to the BIDS specification.
-
 
 EEG data is assumed to be in BrainVision data format (`.vhdr`, `.vmrk`,
 `.eeg`). Eye-tracking data is assumed to be in EyeLink data format (`.edf`
@@ -228,63 +269,143 @@ or `.asc`). Behavioral data is assumed to be in `.csv` format.
 Metadata is taken from the behavioral `.csv` file if present, and from
 the eye-tracking data if not.
 
-#### Parameters
-* subject_nr: int or sr :  The subject number to parse. If an int is passed, the subject number
-	is assumed to be zero-padded to length two (e.g. '01'). If a string
-	is passed, the string is used directly.
-* folder: str, optional :  The folder in which the data is stored.
-* trigger_parser: callable, optional :  A function that converts annotations to events. If no function is
-	specified, triggers are assumed to be encoded by the OpenVibe
-	acquisition software and to follow the convention for indicating
-	trial numbers and event onsets as described in the readme.
-* eeg_margin: int, optional :  The number of seconds after the last trigger to keep. The rest of the
-	data will be cropped to save memory (in case long periods of extraneous
-	data were recorded).
-* min_sacc_dur: int, optional :  The minimum duration of a saccade before it is annotated as a
-	BAD_SACCADE.
-* min_sacc_size: int, optional :  The minimum size of a saccade (in pixels) before it is annotated as a
-	saccade.
-* min_blink_dur: int, optional :  The minimum duration of a blink before it is annotated as a blink.
-* blink_annotation: str, optional :  The annotation label to be used for blinks. Use a BAD_ suffix to
-	use blinks a bads annotations.
-* saccade_annotation: str, optional :  The annotation label to be used for saccades. Use a BAD_ suffix to
-	use saccades a bads annotations.
-* eeg_preprocessing: bool, optional :  Indicates whether EEG preprocessing should be performed.
-* save_preprocessing_output: bool, optional :  Indicates whether output generated during EEG preprocessing should be
-	saved.
-* plot_preprocessing: bool, optional :  Indicates whether plots should be shown during EEG preprocessing.
-* eye_kwargs: dict, optional :  Optional keyword arguments to be passed onto the EyeLink parser. If
-	traceprocessor is provided, a default traceprocessor is used with
-	advanced blink reconstruction enabled and 10x downsampling.
-* downsample_data_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* drop_unused_channels_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* rereference_channels_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* create_eog_channels_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* set_montage_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* band_pass_filter_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* autodetect_bad_channels_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* run_ica_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* auto_select_ica_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
-* interpolate_bads_kwargs: dict, optional :  Passed as keyword arguments to corresponding preprocessing function.
+### Parameters
 
-#### Returns
-<b><i>tuple:</i></b>  A raw (EEG data), events (EEG triggers), metadata (a table with
-	experimental variables) tuple.
+* **subject\_nr: int or sr**
+
+  The subject number to parse. If an int is passed, the subject number
+  is assumed to be zero-padded to length two (e.g. '01'). If a string
+  is passed, the string is used directly.
+
+* **folder: str, optional**
+
+  The folder in which the data is stored.
+
+* **trigger\_parser: callable, optional**
+
+  A function that converts annotations to events. If no function is
+  specified, triggers are assumed to be encoded by the OpenVibe
+  acquisition software and to follow the convention for indicating
+  trial numbers and event onsets as described in the readme.
+
+* **eeg\_margin: int, optional**
+
+  The number of seconds after the last trigger to keep. The rest of the
+  data will be cropped to save memory (in case long periods of extraneous
+  data were recorded).
+
+* **min\_sacc\_dur: int, optional**
+
+  The minimum duration of a saccade before it is annotated as a
+  BAD_SACCADE.
+
+* **min\_sacc\_size: int, optional**
+
+  The minimum size of a saccade (in pixels) before it is annotated as a
+  saccade.
+
+* **min\_blink\_dur: int, optional**
+
+  The minimum duration of a blink before it is annotated as a blink.
+
+* **blink\_annotation: str, optional**
+
+  The annotation label to be used for blinks. Use a BAD_ suffix to
+  use blinks a bads annotations.
+
+* **saccade\_annotation: str, optional**
+
+  The annotation label to be used for saccades. Use a BAD_ suffix to
+  use saccades a bads annotations.
+
+* **eeg\_preprocessing: bool, optional**
+
+  Indicates whether EEG preprocessing should be performed.
+
+* **save\_preprocessing\_output: bool, optional**
+
+  Indicates whether output generated during EEG preprocessing should be
+  saved.
+
+* **plot\_preprocessing: bool, optional**
+
+  Indicates whether plots should be shown during EEG preprocessing.
+
+* **eye\_kwargs: dict, optional**
+
+  Optional keyword arguments to be passed onto the EyeLink parser. If
+  traceprocessor is provided, a default traceprocessor is used with
+  advanced blink reconstruction enabled and 10x downsampling.
+
+* **downsample\_data\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **drop\_unused\_channels\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **rereference\_channels\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **create\_eog\_channels\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **set\_montage\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **annotate\_emg\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **band\_pass\_filter\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **autodetect\_bad\_channels\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **run\_ica\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **auto\_select\_ica\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+* **interpolate\_bads\_kwargs: dict, optional**
+
+  Passed as keyword arguments to corresponding preprocessing function.
+
+### Returns
+
+* **_tuple:_**
+
+  A raw (EEG data), events (EEG triggers), metadata (a table with
+  experimental variables) tuple.
 
 
 
-**<span style="color:purple">eeg&#95;eyetracking&#95;parser.trial&#95;trigger</span>_(events)_**
-
+## <span style="color:purple">eeg\_eyetracking\_parser.trial\_trigger</span>_(events)_
 
 Selects all trial triggers from event information. Trial triggers have
 values between 128 and 255 (inclusive).
 
+### Parameters
 
-#### Parameters
-* events: tuple :  Event information as returned by `read_subject()`.
+* **events: tuple**
 
-#### Returns
-<b><i>array:</i></b>  A numpy array with events as expected by mne.Epochs().
+  Event information as returned by `read_subject()`.
+
+### Returns
+
+* **_array:_**
+
+  A numpy array with events as expected by mne.Epochs().
 
 ## License
 
