@@ -27,27 +27,20 @@ class PupilEpochs(mne.Epochs):
         return evoked
 
 
-class EegEpochs(mne.Epochs):
-     """An Epochs class for the EEG data. This allows automatic rejection of artifacts.
+class AutorejectEpochs(mne.Epochs):
+    """An Epochs class for the EEG data where the bad epochs are automatically rejected with autoreject
     """
 
-
-    def __init__(self, *args, **kwargs):
-        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
+    def __init__(self, *args, autoreject_kwargs={}, **kwargs):
         super().__init__(*args, **kwargs, picks='eeg', preload=True)
-        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
+        if 'n_interpolate' not in autoreject_kwargs:
+            autoreject_kwargs['n_interpolate'] = [1, 4, 8, 16]
+        self._autoreject_artifacts(autoreject_kwargs)
 
-    def autoreject_artifacts(self, n_interpolate=[1, 4, 8, 16], *args, **kwargs):
-        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
-        AR = ar.AutoReject(n_interpolate=n_interpolate, *args, **kwargs)
+    def _autoreject_artifacts(self, autoreject_kwargs):
+        AR = ar.AutoReject(**autoreject_kwargs)
         AR.fit_transform(self)
-
-    def average(self, *args, **kwargs):
-        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
-        evoked = super().average(*args, **kwargs)
-        mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
-        return evoked
-
+        
 
 def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
     """Takes an Epochs or PupilEpochs object and converts it to a DataMatrix
