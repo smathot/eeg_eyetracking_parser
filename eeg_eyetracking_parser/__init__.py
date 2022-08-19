@@ -4,7 +4,7 @@ and parsing this data into convenient objects for further analysis.
 import logging
 from ._triggers import trial_trigger, epoch_trigger
 from ._parsing import read_subject
-from ._custom_epochs import PupilEpochs, EEGEpochs, epochs_to_series
+from ._custom_epochs import PupilEpochs, autoreject_epochs, epochs_to_series
 
 
 __version__ = '0.5.1'

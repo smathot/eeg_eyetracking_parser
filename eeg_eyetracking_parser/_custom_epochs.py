@@ -27,20 +27,34 @@ class PupilEpochs(mne.Epochs):
         return evoked
 
 
-class EEGEpochs(mne.Epochs):
-    """An Epochs class for the EEG data. This allows automatic rejection of
-    artifacts.
+def autoreject_epochs(*args, ar_kwargs=None, **kwargs):
+    """A factory function that creates an Epochs() object, applies
+    autorejection, and then returns it.
+    
+    Parameters
+    ----------
+    *args: iterable
+        Arguments passed to mne.Epochs()
+    ar_kwargs: dict or None, optional
+        Keywords to be passed to AutoReject(). If `n_interpolate` is not
+        specified, a default value of [1, 4, 8, 16] is used.
+    **kwargs: dict
+        Keywords passed to mne.Epochs()
+        
+    Returns
+    -------
+    Epochs:
+        An mne.Epochs() object with autorejection applied.
     """
-
-    def __init__(self, *args, ar_kwargs=None, **kwargs):
-        super().__init__(*args, **kwargs, picks='eeg', preload=True)
-        if ar_kwargs is None:
-            ar_kwargs = {}
-        if 'interpolate' not in ar_kwargs:
-            ar_kwargs['interpolate'] = [1, 4, 8, 16]
-        ar = autoreject.AutoReject(**ar_kwargs)
-        ar.fit_transform(self)
-
+    if 'picks' not in kwargs:
+        kwargs['picks'] = 'eeg'
+    epochs = mne.Epochs(*args, preload=True, **kwargs)
+    if ar_kwargs is None:
+        ar_kwargs = {}
+    if 'n_interpolate' not in ar_kwargs:
+        ar_kwargs['n_interpolate'] = [1, 4, 8, 16]
+    ar = autoreject.AutoReject(**ar_kwargs)
+    return ar.fit_transform(epochs)
 
 
 def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
