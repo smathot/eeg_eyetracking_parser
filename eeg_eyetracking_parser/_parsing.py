@@ -19,7 +19,7 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
                  eye_kwargs={}, downsample_data_kwargs={},
                  drop_unused_channels_kwargs={}, 
                  rereference_channels_kwargs={}, create_eog_channels_kwargs={},
-                 set_montage_kwargs={}, band_pass_filter_kwargs={},
+                 set_montage_kwargs={}, annotate_emg_kwargs={}, band_pass_filter_kwargs={},
                  autodetect_bad_channels_kwargs={}, run_ica_kwargs={},
                  auto_select_ica_kwargs={}, interpolate_bads_kwargs={}):
     """Reads EEG, eye-tracking, and behavioral data for a single participant.
@@ -84,6 +84,8 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
         Passed as keyword arguments to corresponding preprocessing function.
     set_montage_kwargs: dict, optional
         Passed as keyword arguments to corresponding preprocessing function.
+    annotate_emg_kwargs: dict, optional
+         Passed as keyword arguments to corresponding preprocessing function.
     band_pass_filter_kwargs: dict, optional
         Passed as keyword arguments to corresponding preprocessing function.
     autodetect_bad_channels_kwargs: dict, optional
@@ -130,19 +132,26 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
                 preprocessing_path
             run_ica_kwargs['preprocessing_path'] = preprocessing_path
             auto_select_ica_kwargs['preprocessing_path'] = preprocessing_path
+            annotate_emg_kwargs['preprocessing_path'] = preprocessing_path
         if plot_preprocessing:
             logger.info(f'creating plots during preprocessing')
             set_montage_kwargs['plot'] = True
             band_pass_filter_kwargs['plot'] = True
             autodetect_bad_channels_kwargs['plot'] = True
             auto_select_ica_kwargs['plot'] = True
-        logger.info('downsampling')
-        raw, events = epp.downsample_data(raw, events,
-                                          **downsample_data_kwargs)
+            annotate_emg_kwargs['plot'] = True
         logger.info('dropping unused channels')
         epp.drop_unused_channels(raw, **drop_unused_channels_kwargs)
         logger.info('re-referencing channels')
         epp.rereference_channels(raw, **rereference_channels_kwargs)
+        logger.info('applying muscle artifact detection')
+        epp.annotate_emg(raw, **annotate_emg_kwargs)
+        # Operations that require a high sampling rate, notable EMG annotation
+        # should be done before downsampling. Everything else should be done
+        # afterwards to save memory and time.
+        logger.info('downsampling')
+        raw, events = epp.downsample_data(raw, events,
+                                          **downsample_data_kwargs)
         logger.info('creating EOG channels')
         epp.create_eog_channels(raw, **create_eog_channels_kwargs)
         logger.info('setting montage')
