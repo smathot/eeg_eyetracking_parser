@@ -2,7 +2,8 @@ import mne
 import logging
 import numpy as np
 from datamatrix._datamatrix._seriescolumn import _SeriesColumn
-from datamatrix import series as srs, NAN, operations as ops
+from datamatrix import series as srs, NAN, operations as ops, functional as fnc
+from functools import lru_cache
 import autoreject
 import os
 
@@ -30,7 +31,7 @@ class PupilEpochs(mne.Epochs):
 def autoreject_epochs(*args, ar_kwargs=None, **kwargs):
     """A factory function that creates an Epochs() object, applies
     autorejection, and then returns it.
-    
+
     Parameters
     ----------
     *args: iterable
@@ -40,21 +41,25 @@ def autoreject_epochs(*args, ar_kwargs=None, **kwargs):
         specified, a default value of [1, 4, 8, 16] is used.
     **kwargs: dict
         Keywords passed to mne.Epochs()
-        
+
     Returns
     -------
     Epochs:
         An mne.Epochs() object with autorejection applied.
     """
-    if 'picks' not in kwargs:
-        kwargs['picks'] = 'eeg'
-    epochs = mne.Epochs(*args, preload=True, **kwargs)
-    if ar_kwargs is None:
-        ar_kwargs = {}
-    if 'n_interpolate' not in ar_kwargs:
-        ar_kwargs['n_interpolate'] = [1, 4, 8, 16]
-    ar = autoreject.AutoReject(**ar_kwargs)
-    return ar.fit_transform(epochs)
+    
+    @fnc.memoize(persistent=True)
+    def _inner(*args, ar_kwargs=None, **kwargs):
+        if 'picks' not in kwargs:
+            kwargs['picks'] = 'eeg'
+        epochs = mne.Epochs(*args, preload=True, **kwargs)
+        if ar_kwargs is None:
+            ar_kwargs = {}
+        if 'n_interpolate' not in ar_kwargs:
+            ar_kwargs['n_interpolate'] = [1, 4, 8, 16]
+        ar = autoreject.AutoReject(**ar_kwargs)
+        return ar.fit_transform(epochs)
+    return _inner(*args, ar_kwargs=ar_kwargs, **kwargs)
 
 
 def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
