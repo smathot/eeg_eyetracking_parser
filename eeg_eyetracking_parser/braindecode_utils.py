@@ -166,9 +166,8 @@ def read_decode_dataset(subject_nr, factors, epochs_kwargs, trigger,
     return dataset, labels, metadata
 
 
-@fnc.memoize(persistent=True)
 def _read_decode_subject(*args, **kwargs):
-    """A simple memoized wrapper around read_subject(). Also applies
+    """A wrapper around read_subject() that also applies
     braindecode-appropriate preprocessing.
     """
     raw, events, metadata = read_subject(*args, **kwargs)

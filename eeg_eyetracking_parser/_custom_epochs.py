@@ -28,9 +28,15 @@ class PupilEpochs(mne.Epochs):
         return evoked
 
 
+@fnc.memoize(persistent=True)
 def autoreject_epochs(*args, ar_kwargs=None, **kwargs):
     """A factory function that creates an Epochs() object, applies
     autorejection, and then returns it.
+    
+    __Important:__ This function uses persistent memoization, which means that
+    the results for a given set of arguments are stored on disk and returned
+    right away for subsequent calls. For more information, see
+    <https://pydatamatrix.eu/memoization/>
 
     Parameters
     ----------
@@ -47,19 +53,15 @@ def autoreject_epochs(*args, ar_kwargs=None, **kwargs):
     Epochs:
         An mne.Epochs() object with autorejection applied.
     """
-    
-    @fnc.memoize(persistent=True)
-    def _inner(*args, ar_kwargs=None, **kwargs):
-        if 'picks' not in kwargs:
-            kwargs['picks'] = 'eeg'
-        epochs = mne.Epochs(*args, preload=True, **kwargs)
-        if ar_kwargs is None:
-            ar_kwargs = {}
-        if 'n_interpolate' not in ar_kwargs:
-            ar_kwargs['n_interpolate'] = [1, 4, 8, 16]
-        ar = autoreject.AutoReject(**ar_kwargs)
-        return ar.fit_transform(epochs)
-    return _inner(*args, ar_kwargs=ar_kwargs, **kwargs)
+    if 'picks' not in kwargs:
+        kwargs['picks'] = 'eeg'
+    epochs = mne.Epochs(*args, preload=True, **kwargs)
+    if ar_kwargs is None:
+        ar_kwargs = {}
+    if 'n_interpolate' not in ar_kwargs:
+        ar_kwargs['n_interpolate'] = [1, 4, 8, 16]
+    ar = autoreject.AutoReject(**ar_kwargs)
+    return ar.fit_transform(epochs)
 
 
 def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):

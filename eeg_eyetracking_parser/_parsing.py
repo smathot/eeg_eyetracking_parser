@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 import numpy as np
 import mne
-from datamatrix import convert as cnv, io
+from datamatrix import convert as cnv, io, functional as fnc
 from datamatrix._datamatrix._seriescolumn import _SeriesColumn
 from eyelinkparser import parse, defaulttraceprocessor
 from ._triggers import trial_trigger, _parse_triggers, _validate_events
@@ -11,6 +11,7 @@ from . import _eeg_preprocessing as epp
 logger = logging.getLogger('eeg_eyetracking_parser')
 
 
+@fnc.memoize(persistent=True)
 def read_subject(subject_nr, folder='data/', trigger_parser=None,
                  eeg_margin=30, min_sacc_dur=10, min_sacc_size=30,
                  min_blink_dur=10, blink_annotation='BLINK',
@@ -31,6 +32,11 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     
     Metadata is taken from the behavioral `.csv` file if present, and from
     the eye-tracking data if not.
+    
+    __Important:__ This function uses persistent memoization, which means that
+    the results for a given set of arguments are stored on disk and returned
+    right away for subsequent calls. For more information, see
+    <https://pydatamatrix.eu/memoization/>
 
     Parameters
     ----------
