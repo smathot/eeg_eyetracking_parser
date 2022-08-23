@@ -2,6 +2,10 @@
 
 Copyright (2022) Hermine Berberyan, Wouter Kruijne, Sebastiaan Mathôt, Ana Vilotijević
 
+
+[![Publish to PyPi](https://github.com/smathot/eeg_eyetracking_parser/actions/workflows/publish-package.yaml/badge.svg)](https://github.com/smathot/eeg_eyetracking_parser/actions/workflows/publish-package.yaml)
+
+
 ## Table of contents
 
 - [About](#about)
@@ -30,27 +34,15 @@ Parse the data.
 ```python
 import eeg_eyetracking_parser as eet
 
+# eet.read_subject.clear()  # uncomment to clear the cache and reparse
 raw, events, metadata = eet.read_subject(2)
 raw.plot()
 ```
 
-To avoid having to parse the data over and over again, you can use [memoization](https://pydatamatrix.eu/memoization/), which is a way to store the return values of a function:
-
-```python
-from datamatrix import functional as fnc
+To avoid having to parse the data over and over again, `read_subject()` uses persistent [memoization](https://pydatamatrix.eu/memoization/), which is a way to store the return values of a function on disk and return them right away on subsequent calls. To clear the memoization cache, either call the `read_subject.clear()` function or remove the `.memoize` folder.
 
 
-@fnc.memoize(persistent=True)
-def read_subject(subject_nr):
-    return eet.read_subject(subject_nr)
-
-
-# read_subject.clear()  # uncomment to clear the cache and reparse
-raw, events, metadata = read_subject(2)
-```
-
-
-Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`. The function `eet.autoreject_epochs()` behaves similarly to `mne.Epochs()`, except that autorejection is applied.
+Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`. The function `eet.autoreject_epochs()` behaves similarly to `mne.Epochs()`, except that autorejection is applied and that, like `read_subject()`, it uses persistent memoization.
 
 ```python
 import mne
@@ -159,7 +151,6 @@ EE.PulseLines(128 + trialid % 128, 10)  # EE is the EventExchange object
 The onset of each epoch is indicated by a counter that starts at 1 for the first epoch, and then increases for subsequent epochs. In other words, if the target presentation is the second epoch of the trial, then this would correspond to trigger 2 as in the example below. This trigger needs to be sent to both the EEG and the eye tracker at the exact same moment (a temporal offset is *not* ok).
 
 ```python
-
 target_trigger = 2
 eyetracker.log(f'start_phase {target_trigger}')  # eyetracker is created by PyGaze
 EE.PulseLines(target_trigger, 10)
@@ -176,17 +167,24 @@ sys.path.insert(0, os.getcwd())
 import eeg_eyetracking_parser as eet
 from npdoc_to_md import render_obj_docstring
 
-print(render_obj_docstring('eeg_eyetracking_parser.epochs_to_series'))
+print(render_obj_docstring(
+    'eeg_eyetracking_parser.autoreject_epochs._fnc',
+    'autoreject_epochs'))
 print('\n\n')
-print(render_obj_docstring('eeg_eyetracking_parser.epoch_trigger'))
+print(render_obj_docstring('eeg_eyetracking_parser.epochs_to_series',
+    'epochs_to_series'))
 print('\n\n')
-print(render_obj_docstring('eeg_eyetracking_parser.PupilEpochs'))
+print(render_obj_docstring('eeg_eyetracking_parser.epoch_trigger',
+    'epoch_trigger'))
 print('\n\n')
-print(render_obj_docstring('eeg_eyetracking_parser.autoreject_epochs'))
+print(render_obj_docstring('eeg_eyetracking_parser.PupilEpochs',
+    'PupilEpochs'))
 print('\n\n')
-print(render_obj_docstring('eeg_eyetracking_parser.read_subject'))
+print(render_obj_docstring('eeg_eyetracking_parser.read_subject._fnc',
+    'read_subject'))
 print('\n\n')
-print(render_obj_docstring('eeg_eyetracking_parser.trial_trigger'))
+print(render_obj_docstring('eeg_eyetracking_parser.trial_trigger',
+    'trial_trigger'))
 ```
 
 

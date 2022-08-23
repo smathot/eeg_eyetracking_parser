@@ -2,6 +2,10 @@
 
 Copyright (2022) Hermine Berberyan, Wouter Kruijne, Sebastiaan Mathôt, Ana Vilotijević
 
+
+[![Publish to PyPi](https://github.com/smathot/eeg_eyetracking_parser/actions/workflows/publish-package.yaml/badge.svg)](https://github.com/smathot/eeg_eyetracking_parser/actions/workflows/publish-package.yaml)
+
+
 ## Table of contents
 
 - [About](#about)
@@ -30,27 +34,15 @@ Parse the data.
 ```python
 import eeg_eyetracking_parser as eet
 
+# eet.read_subject.clear()  # uncomment to clear the cache and reparse
 raw, events, metadata = eet.read_subject(2)
 raw.plot()
 ```
 
-To avoid having to parse the data over and over again, you can use [memoization](https://pydatamatrix.eu/memoization/), which is a way to store the return values of a function:
-
-```python
-from datamatrix import functional as fnc
+To avoid having to parse the data over and over again, `read_subject()` uses persistent [memoization](https://pydatamatrix.eu/memoization/), which is a way to store the return values of a function on disk and return them right away on subsequent calls. To clear the memoization cache, either call the `read_subject.clear()` function or remove the `.memoize` folder.
 
 
-@fnc.memoize(persistent=True)
-def read_subject(subject_nr):
-    return eet.read_subject(subject_nr)
-
-
-# read_subject.clear()  # uncomment to clear the cache and reparse
-raw, events, metadata = read_subject(2)
-```
-
-
-Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`. The function `eet.autoreject_epochs()` behaves similarly to `mne.Epochs()`, except that autorejection is applied.
+Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`. The function `eet.autoreject_epochs()` behaves similarly to `mne.Epochs()`, except that autorejection is applied and that, like `read_subject()`, it uses persistent memoization.
 
 ```python
 import mne
@@ -159,7 +151,6 @@ EE.PulseLines(128 + trialid % 128, 10)  # EE is the EventExchange object
 The onset of each epoch is indicated by a counter that starts at 1 for the first epoch, and then increases for subsequent epochs. In other words, if the target presentation is the second epoch of the trial, then this would correspond to trigger 2 as in the example below. This trigger needs to be sent to both the EEG and the eye tracker at the exact same moment (a temporal offset is *not* ok).
 
 ```python
-
 target_trigger = 2
 eyetracker.log(f'start_phase {target_trigger}')  # eyetracker is created by PyGaze
 EE.PulseLines(target_trigger, 10)
@@ -170,7 +161,40 @@ Triggers should only be used for temporal information. Conditions are only logge
 
 ## Function reference
 
-## <span style="color:purple">eeg\_eyetracking\_parser.epochs\_to\_series</span>_(dm, epochs, baseline\_trim=(-2, 2))_
+## <span style="color:purple">autoreject\_epochs</span>_(\*args, ar\_kwargs=None, \*\*kwargs)_
+
+A factory function that creates an Epochs() object, applies
+autorejection, and then returns it.
+
+__Important:__ This function uses persistent memoization, which means that
+the results for a given set of arguments are stored on disk and returned
+right away for subsequent calls. For more information, see
+<https://pydatamatrix.eu/memoization/>
+
+### Parameters
+
+* **\*args: iterable**
+
+  Arguments passed to mne.Epochs()
+
+* **ar\_kwargs: dict or None, optional**
+
+  Keywords to be passed to AutoReject(). If `n_interpolate` is not
+  specified, a default value of [1, 4, 8, 16] is used.
+
+* **\*\*kwargs: dict**
+
+  Keywords passed to mne.Epochs()
+
+### Returns
+
+* **_Epochs:_**
+
+  An mne.Epochs() object with autorejection applied.
+
+
+
+## <span style="color:purple">epochs\_to\_series</span>_(dm, epochs, baseline\_trim=(-2, 2))_
 
 Takes an Epochs or PupilEpochs object and converts it to a DataMatrix
 SeriesColumn. If a baseline has been specified in the epoch, it is applied
@@ -198,7 +222,7 @@ to each row of the series separately. Rows where the mean baseline value
 
 
 
-## <span style="color:purple">eeg\_eyetracking\_parser.epoch\_trigger</span>_(events, trigger)_
+## <span style="color:purple">epoch\_trigger</span>_(events, trigger)_
 
 Selects a single epoch trigger from a tuple with event information.
 Epoch triggers have values between 1 and 127 (inclusive).
@@ -221,7 +245,7 @@ Epoch triggers have values between 1 and 127 (inclusive).
 
 
 
-## <span style="color:purple">eeg\_eyetracking\_parser.PupilEpochs</span>_(\*args, \*\*kwargs)_
+## <span style="color:purple">PupilEpochs</span>_(\*args, \*\*kwargs)_
 
 An Epochs class for the PupilSize channel. This allows baseline
 correction to be applied to pupil size, even though this channel is not a
@@ -229,35 +253,7 @@ regular data channel.
 
 
 
-## <span style="color:purple">eeg\_eyetracking\_parser.autoreject\_epochs</span>_(\*args, ar\_kwargs=None, \*\*kwargs)_
-
-A factory function that creates an Epochs() object, applies
-autorejection, and then returns it.
-
-### Parameters
-
-* **\*args: iterable**
-
-  Arguments passed to mne.Epochs()
-
-* **ar\_kwargs: dict or None, optional**
-
-  Keywords to be passed to AutoReject(). If `n_interpolate` is not
-  specified, a default value of [1, 4, 8, 16] is used.
-
-* **\*\*kwargs: dict**
-
-  Keywords passed to mne.Epochs()
-
-### Returns
-
-* **_Epochs:_**
-
-  An mne.Epochs() object with autorejection applied.
-
-
-
-## <span style="color:purple">eeg\_eyetracking\_parser.read\_subject</span>_(subject\_nr, folder='data/', trigger\_parser=None, eeg\_margin=30, min\_sacc\_dur=10, min\_sacc\_size=30, min\_blink\_dur=10, blink\_annotation='BLINK', saccade\_annotation='SACCADE', eeg\_preprocessing=True, save\_preprocessing\_output=True, plot\_preprocessing=True, eye\_kwargs={}, downsample\_data\_kwargs={}, drop\_unused\_channels\_kwargs={}, rereference\_channels\_kwargs={}, create\_eog\_channels\_kwargs={}, set\_montage\_kwargs={}, annotate\_emg\_kwargs={}, band\_pass\_filter\_kwargs={}, autodetect\_bad\_channels\_kwargs={}, run\_ica\_kwargs={}, auto\_select\_ica\_kwargs={}, interpolate\_bads\_kwargs={})_
+## <span style="color:purple">read\_subject</span>_(subject\_nr, folder='data/', trigger\_parser=None, eeg\_margin=30, min\_sacc\_dur=10, min\_sacc\_size=30, min\_blink\_dur=10, blink\_annotation='BLINK', saccade\_annotation='SACCADE', eeg\_preprocessing=True, save\_preprocessing\_output=True, plot\_preprocessing=True, eye\_kwargs={}, downsample\_data\_kwargs={}, drop\_unused\_channels\_kwargs={}, rereference\_channels\_kwargs={}, create\_eog\_channels\_kwargs={}, set\_montage\_kwargs={}, annotate\_emg\_kwargs={}, band\_pass\_filter\_kwargs={}, autodetect\_bad\_channels\_kwargs={}, run\_ica\_kwargs={}, auto\_select\_ica\_kwargs={}, interpolate\_bads\_kwargs={})_
 
 Reads EEG, eye-tracking, and behavioral data for a single participant.
 This data should be organized according to the BIDS specification.
@@ -268,6 +264,11 @@ or `.asc`). Behavioral data is assumed to be in `.csv` format.
 
 Metadata is taken from the behavioral `.csv` file if present, and from
 the eye-tracking data if not.
+
+__Important:__ This function uses persistent memoization, which means that
+the results for a given set of arguments are stored on disk and returned
+right away for subsequent calls. For more information, see
+<https://pydatamatrix.eu/memoization/>
 
 ### Parameters
 
@@ -390,7 +391,7 @@ the eye-tracking data if not.
 
 
 
-## <span style="color:purple">eeg\_eyetracking\_parser.trial\_trigger</span>_(events)_
+## <span style="color:purple">trial\_trigger</span>_(events)_
 
 Selects all trial triggers from event information. Trial triggers have
 values between 128 and 255 (inclusive).
