@@ -70,7 +70,7 @@ def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
     to each row of the series separately. Rows where the mean baseline value
     (z-scored) is not within the range indicated by `baseline_trim` are set to
     `NAN`.
-    
+
     Parameters
     ----------
     dm: DataMatrix
@@ -79,15 +79,29 @@ def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
         The source object with the epoch data.
     baseline_trim: tuple of int, optional
         The range of acceptable baseline values. This refers to z-scores.
-        
+
     Returns
     -------
     SeriesColumn
     """
-    a = epochs.get_data()
-    s = _SeriesColumn(dm, depth=a.shape[2])
-    s._seq[epochs.metadata.index] = a.mean(axis=1)
-    if epochs.baseline is not None:
+    # Different objects have different ways to access the data
+    if hasattr(epochs, 'get_data') and callable(epochs.get_data):
+        a = epochs.get_data()
+    elif hasattr(epochs, 'data'):
+        a = epochs.data
+    else:
+        raise TypeError('invalid epochs object')
+    # If the data is four dimensional, then it's probably a time-frequency
+    # object where the second dimension reflects the frequency bands while
+    # the third dimension reflects channels. We average over both.
+    if len(a.shape) == 4:
+        a = a.mean(axis=(1, 2))
+    # If the data is three dimension, then we only average over channels.
+    else:
+        a = a.mean(axis=1)
+    s = _SeriesColumn(dm, depth=a.shape[1])
+    s._seq[epochs.metadata.index] = a
+    if hasattr(epochs, 'baseline') and epochs.baseline is not None:
         start, end = epochs.baseline
         t = epochs._raw_times
         i = np.where((t >= start) & (t <= end))[0]
