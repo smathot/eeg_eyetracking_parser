@@ -69,8 +69,11 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     saccade_annotation: str, optional
         The annotation label to be used for saccades. Use a BAD_ suffix to
         use saccades a bads annotations.
-    eeg_preprocessing: bool, optional
-        Indicates whether EEG preprocessing should be performed.
+    eeg_preprocessing: bool or list, optional
+        Indicates whether EEG preprocessing should be performed. If `True`,
+        then all preprocessing steps are performed. If a list is passed, then
+        only those steps are performed for which the corresponding function
+        name is in the list (e.g. `['downsample_data', 'set_montage']`)
     save_preprocessing_output: bool, optional
         Indicates whether output generated during EEG preprocessing should be
         saved.
@@ -146,33 +149,76 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
             autodetect_bad_channels_kwargs['plot'] = True
             auto_select_ica_kwargs['plot'] = True
             annotate_emg_kwargs['plot'] = True
-        logger.info('dropping unused channels')
-        epp.drop_unused_channels(raw, **drop_unused_channels_kwargs)
-        logger.info('re-referencing channels')
-        epp.rereference_channels(raw, **rereference_channels_kwargs)
-        logger.info('applying muscle artifact detection')
-        epp.annotate_emg(raw, **annotate_emg_kwargs)
+        if isinstance(eeg_preprocessing, bool):
+            eeg_preprocessing = [
+                'drop_unused_channels',
+                'rereference_channels',
+                'annotate_emg',
+                'downsample_data',
+                'create_eog_channels',
+                'set_montage',
+                'band_pass_filter',
+                'autodetect_bad_channels',
+                'ica',
+                'interpolate_bads']
+        if 'drop_unused_channels' in eeg_preprocessing:
+            logger.info('dropping unused channels')
+            epp.drop_unused_channels(raw, **drop_unused_channels_kwargs)
+        else:
+            logger.info('*not* dropping unused channels')
+        if 'rereference_channels' in eeg_preprocessing:
+            logger.info('re-referencing channels')
+            epp.rereference_channels(raw, **rereference_channels_kwargs)
+        else:
+            logger.info('*not* re-referencing channels')
+        
+        if 'annotate_emg' in eeg_preprocessing:
+            logger.info('applying muscle artifact detection')
+            epp.annotate_emg(raw, **annotate_emg_kwargs)
+        else:
+            logger.info('*not* applying muscle artifact detection')
         # Operations that require a high sampling rate, notable EMG annotation
         # should be done before downsampling. Everything else should be done
         # afterwards to save memory and time.
-        logger.info('downsampling')
-        raw, events = epp.downsample_data(raw, events,
-                                          **downsample_data_kwargs)
-        logger.info('creating EOG channels')
-        epp.create_eog_channels(raw, **create_eog_channels_kwargs)
-        logger.info('setting montage')
-        epp.set_montage(raw, **set_montage_kwargs)
-        logger.info('applying band-pass filter')
-        epp.band_pass_filter(raw, **band_pass_filter_kwargs)
-        logger.info('autodetecting bad channels')
-        epp.autodetect_bad_channels(raw, events,
-                                    **autodetect_bad_channels_kwargs)
-        logger.info('running ICA')
-        ica = epp.run_ica(raw, **run_ica_kwargs)
-        logger.info('autoselect ICA')
-        epp.auto_select_ica(raw, ica, **auto_select_ica_kwargs)
-        logger.info('interpolate bad channels')
-        epp.interpolate_bads(raw, **interpolate_bads_kwargs)
+        if 'downsample_data' in eeg_preprocessing:
+            logger.info('downsampling')
+            raw, events = epp.downsample_data(raw, events,
+                                              **downsample_data_kwargs)
+        else:
+            logger.info('*not* downsampling')
+        if 'create_eog_channels' in eeg_preprocessing:
+            logger.info('creating EOG channels')
+            epp.create_eog_channels(raw, **create_eog_channels_kwargs)
+        else:
+            logger.info('*not* creating EOG channels')
+        if 'set_montage' in eeg_preprocessing:
+            logger.info('setting montage')
+            epp.set_montage(raw, **set_montage_kwargs)
+        else:
+            logger.info('*not* setting montage')
+        if 'band_pass_filter' in eeg_preprocessing:
+            logger.info('applying band-pass filter')
+            epp.band_pass_filter(raw, **band_pass_filter_kwargs)
+        else:
+            logger.info('*not* applying band-pass filter')
+        if 'autodetect_bad_channels' in eeg_preprocessing:
+            logger.info('autodetecting bad channels')
+            epp.autodetect_bad_channels(raw, events,
+                                        **autodetect_bad_channels_kwargs)
+        else:
+            logger.info('*not* autodetecting bad channels')
+        if 'ica' in eeg_preprocessing:
+            logger.info('running ICA')
+            ica = epp.run_ica(raw, **run_ica_kwargs)
+            logger.info('autoselect ICA')
+            epp.auto_select_ica(raw, ica, **auto_select_ica_kwargs)
+        else:
+            logger.info('*not* running ICA')
+        if 'interpolate_bads' in eeg_preprocessing:
+            logger.info('interpolating bad channels')
+            epp.interpolate_bads(raw, **interpolate_bads_kwargs)
+        else:
+            logger.info('*not* interpolating bad channels')
     return raw, events, metadata
 
 
