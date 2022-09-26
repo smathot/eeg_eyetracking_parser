@@ -319,9 +319,12 @@ right away for subsequent calls. For more information, see
   The annotation label to be used for saccades. Use a BAD_ suffix to
   use saccades a bads annotations.
 
-* **eeg\_preprocessing: bool, optional**
+* **eeg\_preprocessing: bool or list, optional**
 
-  Indicates whether EEG preprocessing should be performed.
+  Indicates whether EEG preprocessing should be performed. If `True`,
+  then all preprocessing steps are performed. If a list is passed, then
+  only those steps are performed for which the corresponding function
+  name is in the list (e.g. `['downsample_data', 'set_montage']`)
 
 * **save\_preprocessing\_output: bool, optional**
 
