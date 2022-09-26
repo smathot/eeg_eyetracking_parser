@@ -21,10 +21,10 @@ def epoch_trigger(events, trigger):
     array:
         A numpy array with events as expected by mne.Epochs().
     """
-    _validate_events(events)
+    events = _validate_events(events)
     if not 128 > trigger > 0:
         raise ValueError('trigger should be a number between 1 and 127')
-    triggers = events[0]
+    triggers = events
     return triggers[triggers[:, 2] == trigger]
     
 
@@ -42,8 +42,8 @@ def trial_trigger(events):
     array:
         A numpy array with events as expected by mne.Epochs().
     """    
-    _validate_events(events)
-    triggers = events[0]
+    events = _validate_events(events)
+    triggers = events
     return triggers[triggers[:, 2] >= 128]
 
 
@@ -58,14 +58,14 @@ def _parse_triggers(label):
     
 def _validate_events(events):
     """Checks whether the events are in the correct format."""
-    if not isinstance(events, tuple):
-        raise TypeError('events should be a tuple')
-    if len(events) != 2:
-        raise ValueError('events should be a tuple of length 2')
-    if not isinstance(events[0], np.ndarray):
-        raise TypeError('the first element of events should be a numpy array')
-    if not isinstance(events[1], dict):
-        raise TypeError('the second element of events should be a dict')
-    codes = events[0][:, 2]
+    if isinstance(events, tuple):
+        if len(events) != 2:
+            raise ValueError(
+                'events should be a numpy array or tuple of length 2')
+        events = events[0]
+    if not isinstance(events, np.ndarray):
+        raise TypeError('events should be a numpy array')
+    codes = events[:, 2]
     if np.any((codes < 1) | (codes > 255)):
         raise ValueError('trigger codes should be values between 1 and 255')
+    return events
