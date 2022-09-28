@@ -13,7 +13,7 @@ logger = logging.getLogger('eeg_eyetracking_parser')
 
 @fnc.memoize(persistent=True)
 def read_subject(subject_nr, folder='data/', trigger_parser=None,
-                 eeg_margin=30, min_sacc_dur=10, min_sacc_size=30,
+                 eeg_margin=30, min_sacc_dur=10, min_sacc_size=100,
                  min_blink_dur=10, blink_annotation='BLINK',
                  saccade_annotation='SACCADE', eeg_preprocessing=True,
                  save_preprocessing_output=True, plot_preprocessing=True,
