@@ -20,9 +20,10 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
                  eye_kwargs={}, downsample_data_kwargs={},
                  drop_unused_channels_kwargs={}, 
                  rereference_channels_kwargs={}, create_eog_channels_kwargs={},
-                 set_montage_kwargs={}, annotate_emg_kwargs={}, band_pass_filter_kwargs={},
-                 autodetect_bad_channels_kwargs={}, run_ica_kwargs={},
-                 auto_select_ica_kwargs={}, interpolate_bads_kwargs={}):
+                 set_montage_kwargs={}, annotate_emg_kwargs={},
+                 band_pass_filter_kwargs={}, autodetect_bad_channels_kwargs={},
+                 run_ica_kwargs={}, auto_select_ica_kwargs={},
+                 interpolate_bads_kwargs={}):
     """Reads EEG, eye-tracking, and behavioral data for a single participant.
     This data should be organized according to the BIDS specification.
     
