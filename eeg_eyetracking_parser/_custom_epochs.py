@@ -53,15 +53,23 @@ def autoreject_epochs(*args, ar_kwargs=None, **kwargs):
     Epochs:
         An mne.Epochs() object with autorejection applied.
     """
-    if 'picks' not in kwargs:
-        kwargs['picks'] = 'eeg'
-    epochs = mne.Epochs(*args, preload=True, **kwargs)
+    # autoreject is initially run on all EEG channels, and only afterwards are
+    # channels picked (if any picks are specified)
+    if 'picks' in kwargs:
+        picks = kwargs['picks']
+        del kwargs['picks']
+    else:
+        picks is None
+    epochs = mne.Epochs(*args, preload=True, picks='eeg', **kwargs)
     if ar_kwargs is None:
         ar_kwargs = {}
     if 'n_interpolate' not in ar_kwargs:
         ar_kwargs['n_interpolate'] = [1, 4, 8, 16]
     ar = autoreject.AutoReject(**ar_kwargs)
-    return ar.fit_transform(epochs)
+    epochs = ar.fit_transform(epochs)
+    if picks is not None:
+        epochs.pick_channels(picks)
+    return epochs
 
 
 def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
