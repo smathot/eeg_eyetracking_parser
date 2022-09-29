@@ -150,8 +150,7 @@ def read_decode_dataset(subject_nr, factors, epochs_kwargs, trigger,
     braindecode.
     """
     raw, events, metadata = _read_decode_subject(
-        subject_nr, folder=folder, save_preprocessing_output=False,
-        plot_preprocessing=False)
+        subject_nr, folder=folder)
     epochs = mne.Epochs(raw, epoch_trigger(events, trigger),
                         metadata=metadata, **epochs_kwargs)
     epochs = epochs[epochs_query]
