@@ -57,7 +57,7 @@ def decode_subject(subject_nr, factors, epochs_kwargs, trigger,
         trials.
     epochs: int, optional
         The number of training epochs, i.e. the number of times that the data
-        is fed into the model
+        is fed into the model. This should be at least 2.
     lesions: list of tuple or str
         A list of time windows or electrode names to be set to 0 during
         testing. A separate prediction is made for each lesion. Time windows
@@ -70,7 +70,7 @@ def decode_subject(subject_nr, factors, epochs_kwargs, trigger,
         The number of samples to jitter around the window for the purpose of
         cropped decoding.
     n_fold: int
-        The total number of splits (or folds)
+        The total number of splits (or folds). This should be at least 2.
     folder: str
         The folder in which the participant data is stored.
         
@@ -92,6 +92,10 @@ def decode_subject(subject_nr, factors, epochs_kwargs, trigger,
         the to-be-decoded factor, and braindecode_prediction is the predicted
         label. Rows where these two columns match were correctly decoded.
     """
+    if not isinstance(epochs, int) or epochs < 2:
+        raise ValueError('epochs should >= 2')
+    if not isinstance(n_fold, int) or epochs < 2:
+        raise ValueError('n_fold should >= 2')
     dataset, labels, metadata = read_decode_dataset(
         subject_nr, factors, epochs_kwargs, trigger, epochs_query,
         window_size=window_size, window_stride=window_stride, folder=folder)
@@ -102,8 +106,11 @@ def decode_subject(subject_nr, factors, epochs_kwargs, trigger,
     for fold in range(n_fold):
         logger.info(f'subject {subject_nr}, fold {fold}')
         train_data, test_data = split_dataset(
-            dataset, fold=fold)
+            dataset, fold=fold, n_fold=n_fold)
         clf = train(train_data, test_data, epochs=epochs)
+        # We can unbalance the data after training to save time and to make the
+        # cell counts match again
+        unbalance_dataset(test_data)
         logger.info('Testing on complete data')
         # We want to know which trial was predicted to have which label. For
         # that reason, we create a datamatrix with true and predicted labels.
@@ -150,7 +157,7 @@ def read_decode_dataset(subject_nr, factors, epochs_kwargs, trigger,
     braindecode.
     """
     raw, events, metadata = _read_decode_subject(
-        subject_nr, folder=folder)
+        subject_nr, folder=folder, eeg_preprocessing=['downsample_data'])
     epochs = mne.Epochs(raw, epoch_trigger(events, trigger),
                         metadata=metadata, **epochs_kwargs)
     epochs = epochs[epochs_query]
@@ -242,7 +249,6 @@ def split_dataset(dataset, n_fold=4, fold=0):
         'train': [i for i in range(len(dataset.datasets)) if i % n_fold != fold],
         'test': [i for i in range(len(dataset.datasets)) if i % n_fold == fold]
     })
-    assert len(splitted['train']) > len(splitted['test'])
     return splitted['train'], splitted['test']
 
 
@@ -266,15 +272,50 @@ def balance_dataset(dataset):
         n_add = max_count - count
         code_datasets = [d for d in dataset.datasets if d.y[0] == code]
         for i in range(n_add):
-            dataset.datasets.append(
-                copy.deepcopy(random.choice(code_datasets)))
-    # We need to update these property to keep the length of the dataset
-    # consistent, because they are used by the __len__() functions. Not clear
-    # what the different roles of the two different properties is. See also:
-    # https://github.com/pytorch/tnt/blob/master/torchnet/dataset/concatdataset.py
+            copied_dataset = copy.deepcopy(random.choice(code_datasets))
+            copied_dataset._is_balance_copy = True
+            dataset.datasets.append(copied_dataset)
+        if n_add:
+            logger.info(
+                f'adding {n_add} observations to code {code} to balance data')
+    update_dataset_size(dataset)
+
+
+def update_dataset_size(dataset):
+    """This updates properties of the dataset to keep the length consistent,
+    because they are used by the __len__() functions. Not clear what the
+    different roles of the two different properties is. See also:
+    
+    - https://github.com/pytorch/tnt/blob/master/torchnet/dataset/concatdataset.py
+    
+    This modifies the dataset in-place.
+
+    Parameters
+    ----------
+    dataset
+    """
     dataset.cum_sizes = np.cumsum([len(x) for x in dataset.datasets])
     dataset.cumulative_sizes = dataset.cum_sizes
-            
+
+
+def unbalance_dataset(dataset):
+    """Removes copied datasets that were add during balancing of the data. This
+    modifies the dataset in-place.
+
+    Parameters
+    ----------
+    dataset
+    """
+    to_remove = []
+    for d in dataset.datasets:
+        if hasattr(d, '_is_balance_copy') and d._is_balance_copy:
+            to_remove.append(d)
+    if not to_remove:
+        return
+    logger.info(f'removing {len(to_remove)} observations to unbalance data')
+    for d in to_remove:
+        dataset.datasets.remove(d)
+    update_dataset_size(dataset)
 
 def build_dataset(epochs, metadata, factors, window_size_samples,
                   window_stride_samples):
@@ -356,7 +397,10 @@ def train(train_set, test_set=None, epochs=4, batch_size=32, lr=0.000625,
         final_conv_length='auto',
     )
     if torch.cuda.is_available():
+        logger.info('enabling cuda for gpu acceleration')
         model.cuda()
+    else:
+        logger.info('cuda is not available, not enabling gpu acceleration')
     to_dense_prediction_model(model)
     if test_set is None:
         train_split = None
