@@ -72,18 +72,18 @@ def autoreject_epochs(*args, ar_kwargs=None, **kwargs):
     return epochs
 
 
-def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
-    """Takes an Epochs or PupilEpochs object and converts it to a DataMatrix
-    SeriesColumn. If a baseline has been specified in the epoch, it is applied
-    to each row of the series separately. Rows where the mean baseline value
-    (z-scored) is not within the range indicated by `baseline_trim` are set to
-    `NAN`.
+def epochs_to_series(dm, epochs, baseline_trim=None):
+    """Takes an Epochs, PupilEpochs, or EpochsTFR object and converts it to a
+    DataMatrix SeriesColumn. If a baseline has been specified in the epoch, it
+    is applied to each row of the series separately. Rows where the mean
+    baseline value (z-scored) is not within the range indicated by
+    `baseline_trim` are set to `NAN`.
 
     Parameters
     ----------
     dm: DataMatrix
         A DataMatrix object to which the series belongs
-    epochs: Epochs or PupilEpochs
+    epochs: Epochs, PupilEpochs, or EpochsTFR
         The source object with the epoch data.
     baseline_trim: tuple of int, optional
         The range of acceptable baseline values. This refers to z-scores.
@@ -123,4 +123,38 @@ def epochs_to_series(dm, epochs, baseline_trim=(-2, 2)):
                         f'setting trace to NAN because baseline out of bounds (bl={bl}, z={z})')
                     s[row_nr] = NAN
         s = srs.baseline(s, s, bl_start, bl_end)
+    return s
+
+
+def tfr_to_surface(dm, epochs):
+    """Takes an EpochsTFR object and converts it to a DataMatrix
+    MultiDimensionalColumn of two dimensions.
+
+    Parameters
+    ----------
+    dm: DataMatrix
+        A DataMatrix object to which the series belongs
+    epochs: EpochsTFR
+        The source object with the epoch data.
+
+    Returns
+    -------
+    SeriesColumn
+    """
+    try:
+        from datamatrix._datamatrix._multidimensionalcolumn import \
+            _MultiDimensionalColumn
+    except ImportError:
+        raise Exception(
+            'Your version of DataMatrix does not support multidimensional columns')
+    # Different objects have different ways to access the data
+    try:
+        a = epochs.data
+    except AttributeError:
+        raise TypeError('invalid EpochsTFR object')
+    if len(a.shape) != 4:
+        raise TypeError('invalid epochs object')
+    a = a.mean(axis=1)
+    s = _MultiDimensionalColumn(dm, shape=a.shape[1:])
+    s._seq[epochs.metadata.index] = a
     return s
