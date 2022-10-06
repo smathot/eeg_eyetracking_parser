@@ -78,7 +78,7 @@ from datamatrix import convert as cnv
 import time_series_test as tst
 
 dm = cnv.from_pandas(metadata)
-dm.pupil = eet.epochs_to_series(dm, cue_epoch)
+dm.pupil = eet.epochs_to_series(dm, cue_epoch, baseline_trim=(-2, 2))
 tst.plot(dm, dv='pupil', hue_factor='cue_eccentricity')
 ```
 
@@ -194,13 +194,13 @@ right away for subsequent calls. For more information, see
 
 
 
-## <span style="color:purple">epochs\_to\_series</span>_(dm, epochs, baseline\_trim=(-2, 2))_
+## <span style="color:purple">epochs\_to\_series</span>_(dm, epochs, baseline\_trim=None)_
 
-Takes an Epochs or PupilEpochs object and converts it to a DataMatrix
-SeriesColumn. If a baseline has been specified in the epoch, it is applied
-to each row of the series separately. Rows where the mean baseline value
-(z-scored) is not within the range indicated by `baseline_trim` are set to
-`NAN`.
+Takes an Epochs, PupilEpochs, or EpochsTFR object and converts it to a
+DataMatrix SeriesColumn. If a baseline has been specified in the epoch, it
+is applied to each row of the series separately. Rows where the mean
+baseline value (z-scored) is not within the range indicated by
+`baseline_trim` are set to `NAN`.
 
 ### Parameters
 
@@ -208,7 +208,7 @@ to each row of the series separately. Rows where the mean baseline value
 
   A DataMatrix object to which the series belongs
 
-* **epochs: Epochs or PupilEpochs**
+* **epochs: Epochs, PupilEpochs, or EpochsTFR**
 
   The source object with the epoch data.
 
@@ -415,3 +415,4 @@ values between 128 and 255 (inclusive).
 
 `eeg_eyetracking_parser` is licensed under the [GNU General Public License
 v3](http://www.gnu.org/licenses/gpl-3.0.en.html).
+

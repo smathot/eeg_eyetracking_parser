@@ -79,7 +79,6 @@ def decode_subject(subject_nr, factors, epochs_kwargs, trigger,
     tuple
         A (results, metadata) tuple.
         
-        
         Results is a dict where keys are labels with 'overall' corresponding to
         the overall (unlesioned) test, and the other keys corresponding to the
         lesions as provided by the lesions parameter. Values are confusion
