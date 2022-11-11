@@ -90,10 +90,13 @@ pip install eeg_eyetracking_parser
 
 ## Dependencies
 
-- mne-python
-- eyelinkparser
+- python-eyelinkparser
+- mne
 - autoreject
 - h5io
+- braindecode
+- python-picard
+- json_tricks
 
 
 ## Assumptions
