@@ -167,7 +167,6 @@ Triggers should only be used for temporal information. Conditions are only logge
 ``` { .python silent }
 import sys, os
 sys.path.insert(0, os.getcwd())
-import eeg_eyetracking_parser as eet
 from npdoc_to_md import render_obj_docstring
 
 print(render_obj_docstring(
@@ -188,6 +187,9 @@ print(render_obj_docstring('eeg_eyetracking_parser.read_subject._fnc',
 print('\n\n')
 print(render_obj_docstring('eeg_eyetracking_parser.trial_trigger',
     'trial_trigger'))
+print('\n\n')
+print(render_obj_docstring('eeg_eyetracking_parser.braindecode_utils.decode_subject._fnc',
+    'braindecode_utils.decode_subject'))
 ```
 
 

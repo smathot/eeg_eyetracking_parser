@@ -90,10 +90,13 @@ pip install eeg_eyetracking_parser
 
 ## Dependencies
 
-- mne-python
-- eyelinkparser
+- python-eyelinkparser
+- mne
 - autoreject
 - h5io
+- braindecode
+- python-picard
+- json_tricks
 
 
 ## Assumptions
@@ -253,7 +256,7 @@ regular data channel.
 
 
 
-## <span style="color:purple">read\_subject</span>_(subject\_nr, folder='data/', trigger\_parser=None, eeg\_margin=30, min\_sacc\_dur=10, min\_sacc\_size=100, min\_blink\_dur=10, blink\_annotation='BLINK', saccade\_annotation='SACCADE', eeg\_preprocessing=True, save\_preprocessing\_output=True, plot\_preprocessing=True, eye\_kwargs={}, downsample\_data\_kwargs={}, drop\_unused\_channels\_kwargs={}, rereference\_channels\_kwargs={}, create\_eog\_channels\_kwargs={}, set\_montage\_kwargs={}, annotate\_emg\_kwargs={}, band\_pass\_filter\_kwargs={}, autodetect\_bad\_channels\_kwargs={}, run\_ica\_kwargs={}, auto\_select\_ica\_kwargs={}, interpolate\_bads\_kwargs={})_
+## <span style="color:purple">read\_subject</span>_(subject\_nr, folder='data/', trigger\_parser=None, eeg\_margin=30, min\_sacc\_dur=10, min\_sacc\_size=100, min\_blink\_dur=10, blink\_annotation='BLINK', saccade\_annotation='SACCADE', eeg\_preprocessing=True, save\_preprocessing\_output=True, plot\_preprocessing=False, eye\_kwargs={}, downsample\_data\_kwargs={}, drop\_unused\_channels\_kwargs={}, rereference\_channels\_kwargs={}, create\_eog\_channels\_kwargs={}, set\_montage\_kwargs={}, annotate\_emg\_kwargs={}, band\_pass\_filter\_kwargs={}, autodetect\_bad\_channels\_kwargs={}, run\_ica\_kwargs={}, auto\_select\_ica\_kwargs={}, interpolate\_bads\_kwargs={})_
 
 Reads EEG, eye-tracking, and behavioral data for a single participant.
 This data should be organized according to the BIDS specification.
@@ -411,8 +414,98 @@ values between 128 and 255 (inclusive).
 
   A numpy array with events as expected by mne.Epochs().
 
+
+
+## <span style="color:purple">braindecode\_utils.decode\_subject</span>_(read\_subject\_kwargs, factors, epochs\_kwargs, trigger, epochs\_query='practice == "no"', epochs=4, window\_size=200, window\_stride=1, n\_fold=4, crossdecode\_factors=None, patch\_data\_func=None, read\_subject\_func=None)_
+
+The main entry point for decoding a subject's data.
+
+### Parameters
+
+* **read\_subject\_kwargs: dict**
+
+  A dict with keyword arguments that are passed to eet.read_subject() to
+  load the data. Additional preprocessing as specified in
+  `preprocess_raw()` is applied afterwards.
+
+* **factors: str or list of str**
+
+  A factor or list of factors that should be decoded. Factors should be
+  str and match column names in the metadata.
+
+* **epochs\_kwargs: dict, optional**
+
+  A dict with keyword arguments that are passed to mne.Epochs() to
+  extract the to-be-decoded epoch.
+
+* **trigger: int**
+
+  The trigger code that defines the to-be-decoded epoch.
+
+* **epochs\_query: str, optional**
+
+  A pandas-style query to select trials from the to-be-decoded epoch. The
+  default assumes that there is a `practice` column from which we only
+  want to have the 'no' values, i.e. that we want exclude practice
+  trials.
+
+* **epochs: int, optional**
+
+  The number of training epochs, i.e. the number of times that the data
+  is fed into the model. This should be at least 2.
+
+* **window\_size\_samples: int, optional**
+
+  The length of the window to sample from the Epochs object. This should
+  be slightly shorter than the actual Epochs to allow for jittered
+  samples to be taken from the purpose of 'cropped decoding'.
+
+* **window\_stride\_samples: int, optional**
+
+  The number of samples to jitter around the window for the purpose of
+  cropped decoding.
+
+* **n\_fold: int, optional**
+
+  The total number of splits (or folds). This should be at least 2.
+
+* **crossdecode\_factors: str or list of str, optional**
+
+  A factor or list of factors that should be decoded during tester. If
+  provided, the classifier is trained using the factors specified in
+  `factors` and tested using the factors specified in
+  `crossdecode_factors`. In other words, specifying this keyword allow
+  for crossdecoding.
+
+* **patch\_data\_func: callable or None, optional**
+
+  If provided, this should be a function that accepts a tuple of
+  `(raw, events, metadata)` as returned by `read_subject()` and also
+  returns a tuple of `(raw, events, metadata)`. This function can modify
+  aspects of the data before decoding is applied.
+
+* **read\_subject\_func: callable or None, optional**
+
+  If provided, this should be a function that accepts keywords as
+  provided through the `read_subject_kwargs` argument, and returns a
+  tuple of `(raw, events, metadata)`. If not provided, the default
+  `read_subject()` function is used.
+
+### Returns
+
+* **_DataMatrix_**
+
+  Contains the original metadata plus four additional columns:
+
+  - `braindecode_label` is a numeric label that corresponds to the
+    to-be-decoded factor, i.e. the ground truth
+  - `braindecode_prediction` is the predicted label
+  - `braindecode_correct` is 1 for correct predictions and 0 otherwise
+  - `braindecode_probabilities` is a SeriesColumn with the predicted
+    probabilities for each label. The prediction itself corresponds to
+    the index with the highest probability.
+
 ## License
 
 `eeg_eyetracking_parser` is licensed under the [GNU General Public License
 v3](http://www.gnu.org/licenses/gpl-3.0.en.html).
-
