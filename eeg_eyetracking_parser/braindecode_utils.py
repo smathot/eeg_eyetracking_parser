@@ -36,7 +36,7 @@ logger = logging.getLogger('eeg_eyetracking_parser')
 def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
                    epochs_query='practice == "no"', epochs=4, window_size=200,
                    window_stride=1, n_fold=4, crossdecode_factors=None,
-                   patch_data_func=None):
+                   patch_data_func=None, read_subject_func=None):
     """The main entry point for decoding a subject's data.
     
     Parameters
@@ -81,6 +81,11 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         `(raw, events, metadata)` as returned by `read_subject()` and also
         returns a tuple of `(raw, events, metadata)`. This function can modify
         aspects of the data before decoding is applied.
+    read_subject_func: callable or None, optional
+        If provided, this should be a function that accepts keywords as
+        provided through the `read_subject_kwargs` argument, and returns a
+        tuple of `(raw, events, metadata)`. If not provided, the default
+        `read_subject()` function is used.
 
     Returns
     -------
@@ -102,12 +107,13 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
     dataset, labels, metadata = read_decode_dataset(
         read_subject_kwargs, factors, epochs_kwargs, trigger, epochs_query,
         window_size=window_size, window_stride=window_stride,
-        patch_data_func=patch_data_func)
+        patch_data_func=patch_data_func, read_subject_func=read_subject_func)
     if crossdecode_factors is not None:
         cd_dataset, labels, metadata = read_decode_dataset(
             read_subject_kwargs, crossdecode_factors, epochs_kwargs, trigger,
             epochs_query, window_size=window_size, window_stride=window_stride,
-            patch_data_func=patch_data_func)
+            patch_data_func=patch_data_func,
+            read_subject_func=read_subject_func)
     n_conditions = len(labels)
     predictions = DataMatrix(length=0)
     for fold in range(n_fold):
@@ -155,11 +161,14 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
 def read_decode_dataset(read_subject_kwargs, factors, epochs_kwargs, trigger,
                         epochs_query='practice == "no"', lesion=None,
                         window_size=200, window_stride=1,
-                        patch_data_func=None):
+                        patch_data_func=None, read_subject_func=None):
     """Reads a dataset and converts it to a format that is suitable for
     braindecode.
     """
-    raw, events, metadata = read_subject(**read_subject_kwargs)
+    raw, events, metadata = (
+        read_subject(**read_subject_kwargs)
+        if read_subject_func is None else
+        read_subject_func(**read_subject_kwargs))
     if patch_data_func is not None:
         raw, events, metadata = patch_data_func(raw, events, metadata)
     _preprocess_raw(raw)
