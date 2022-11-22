@@ -8,6 +8,6 @@ from ._custom_epochs import PupilEpochs, autoreject_epochs, epochs_to_series, \
     tfr_to_surface
 
 
-__version__ = '0.12.0'
+__version__ = '0.12.1'
 logger = logging.getLogger('eeg_eyetracking_parser')
 logger.info(f'eeg_eyetracking_parser {__version__}')
