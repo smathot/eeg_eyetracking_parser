@@ -174,6 +174,10 @@ def read_decode_dataset(read_subject_kwargs, factors, epochs_kwargs, trigger,
     _preprocess_raw(raw)
     epochs = mne.Epochs(raw, epoch_trigger(events, trigger),
                         metadata=metadata, **epochs_kwargs)
+    n_dropped = len(metadata) - len(epochs)
+    if n_dropped:
+        logger.info(f'{n_dropped} epochs were dropped')
+        metadata = metadata.iloc[epochs.selection]
     epochs = epochs[epochs_query]
     metadata = metadata.query(epochs_query)
     if isinstance(lesion, tuple):
