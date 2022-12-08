@@ -145,7 +145,8 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
                        n_conditions))
         fold_predictions = DataMatrix(length=len(test_data.datasets))
         fold_predictions.y_true = [d.y[0] for d in test_data.datasets]
-        fold_predictions.y_pred = mode(resized_pred, axis=1)[0].flatten()
+        fold_predictions.y_pred = mode(
+            resized_pred, axis=1, keepdims=True)[0].flatten()
         fold_predictions.y_prob = SeriesColumn(depth=y_prob.shape[-1])
         fold_predictions.y_prob = y_prob.mean(axis=1)
         fold_predictions.timestamp = [
