@@ -115,12 +115,19 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
             patch_data_func=patch_data_func,
             read_subject_func=read_subject_func)
     n_conditions = len(labels)
+    logger.info(f'decoding {n_conditions} labels')
     predictions = DataMatrix(length=0)
     for fold in range(n_fold):
         train_data, test_data = _split_dataset(dataset, fold=fold,
                                                n_fold=n_fold)
         if crossdecode_factors is not None:
             _, test_data = _split_dataset(cd_dataset, fold=fold, n_fold=n_fold)
+        n_train_conditions = len(set(d.y[0] for d in train_data.datasets))
+        if n_train_conditions != n_conditions:
+            raise ValueError('Some labels are missing from training set')
+        n_test_conditions = len(set(d.y[0] for d in test_data.datasets))
+        if n_test_conditions != n_conditions:
+            raise ValueError('Some labels are missing from testing set')
         clf = train(train_data, test_data, epochs=epochs)
         # We can unbalance the data after training to save time and to make the
         # cell counts match again
