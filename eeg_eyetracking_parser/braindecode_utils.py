@@ -36,7 +36,7 @@ logger = logging.getLogger('eeg_eyetracking_parser')
 def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
                    epochs_query='practice == "no"', epochs=4, window_size=200,
                    window_stride=1, n_fold=4, crossdecode_factors=None,
-                   patch_data_func=None, read_subject_func=None):
+                   patch_data_func=None, read_subject_func=None, cuda=True):
     """The main entry point for decoding a subject's data.
     
     Parameters
@@ -86,6 +86,9 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         provided through the `read_subject_kwargs` argument, and returns a
         tuple of `(raw, events, metadata)`. If not provided, the default
         `read_subject()` function is used.
+    cuda: bool, optional
+        If True, cuda will be used for GPU processing if it is available. If
+        False, cuda won't be used, not even when it is available.
 
     Returns
     -------
@@ -128,7 +131,7 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         n_test_conditions = len(set(d.y[0] for d in test_data.datasets))
         if n_test_conditions != n_conditions:
             raise ValueError('Some labels are missing from testing set')
-        clf = train(train_data, test_data, epochs=epochs)
+        clf = train(train_data, test_data, epochs=epochs, cuda=cuda)
         # We can unbalance the data after training to save time and to make the
         # cell counts match again
         _unbalance_dataset(test_data)
@@ -199,7 +202,7 @@ def read_decode_dataset(read_subject_kwargs, factors, epochs_kwargs, trigger,
 
 
 def train(train_set, test_set=None, epochs=4, batch_size=32, lr=0.000625,
-          weight_decay=0, predict_nonlinearity='auto'):
+          weight_decay=0, predict_nonlinearity='auto', cuda=True):
     """Trains a classifier based on a training set. If a test set is provided,
     validation metrics are shown during training. However, for proper testing,
     the testing data should be predicted separately after training.
@@ -223,6 +226,8 @@ def train(train_set, test_set=None, epochs=4, batch_size=32, lr=0.000625,
         tutorials for the shallow network
     predict_nonlinearity: str, None, or callable
         See EEGClassifier docs
+    cuda: bool, optional
+        See decode_subject
         
     Returns
     -------
@@ -240,11 +245,13 @@ def train(train_set, test_set=None, epochs=4, batch_size=32, lr=0.000625,
         input_window_samples=input_window_samples,
         final_conv_length='auto',
     )
-    if torch.cuda.is_available():
+    if cuda and torch.cuda.is_available():
         logger.info('enabling cuda for gpu acceleration')
         model.cuda()
+        device = 'cuda'
     else:
         logger.info('cuda is not available, not enabling gpu acceleration')
+        device = 'cpu'
     to_dense_prediction_model(model)
     if test_set is None:
         train_split = None
@@ -267,7 +274,8 @@ def train(train_set, test_set=None, epochs=4, batch_size=32, lr=0.000625,
         iterator_train__shuffle=True,
         batch_size=batch_size,
         callbacks=callbacks,
-        predict_nonlinearity=predict_nonlinearity
+        predict_nonlinearity=predict_nonlinearity,
+        device=device
     )
     clf.fit(train_set, y=None, epochs=epochs)
     return clf
