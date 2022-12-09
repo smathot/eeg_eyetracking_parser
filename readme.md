@@ -416,7 +416,7 @@ values between 128 and 255 (inclusive).
 
 
 
-## <span style="color:purple">braindecode\_utils.decode\_subject</span>_(read\_subject\_kwargs, factors, epochs\_kwargs, trigger, epochs\_query='practice == "no"', epochs=4, window\_size=200, window\_stride=1, n\_fold=4, crossdecode\_factors=None, patch\_data\_func=None, read\_subject\_func=None)_
+## <span style="color:purple">braindecode\_utils.decode\_subject</span>_(read\_subject\_kwargs, factors, epochs\_kwargs, trigger, epochs\_query='practice == "no"', epochs=4, window\_size=200, window\_stride=1, n\_fold=4, crossdecode\_factors=None, patch\_data\_func=None, read\_subject\_func=None, cuda=True)_
 
 The main entry point for decoding a subject's data.
 
@@ -490,6 +490,11 @@ The main entry point for decoding a subject's data.
   provided through the `read_subject_kwargs` argument, and returns a
   tuple of `(raw, events, metadata)`. If not provided, the default
   `read_subject()` function is used.
+
+* **cuda: bool, optional**
+
+  If True, cuda will be used for GPU processing if it is available. If
+  False, cuda won't be used, not even when it is available.
 
 ### Returns
 
