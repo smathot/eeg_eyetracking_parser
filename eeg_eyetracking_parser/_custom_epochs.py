@@ -1,5 +1,6 @@
 import mne
 import logging
+import warnings
 import numpy as np
 from datamatrix._datamatrix._seriescolumn import _SeriesColumn
 from datamatrix import series as srs, NAN, operations as ops, functional as fnc
@@ -13,12 +14,33 @@ logger = logging.getLogger('eeg_eyetracking_parser')
 class PupilEpochs(mne.Epochs):
     """An Epochs class for the PupilSize channel. This allows baseline
     correction to be applied to pupil size, even though this channel is not a
-    regular data channel.
-    """
+    regular data channel. In addition, this class allows pupil sizes to be
+    excluded based on deviant baseline values, which is recommended for
+    pupil analysis (but not typically done for eeg).
     
-    def __init__(self, *args, **kwargs):
+    Parameters
+    ----------
+    *args: iterable
+        Arguments passed to mne.Epochs()
+    baseline_trim: tuple of int, optional
+        The range of acceptable baseline values. This refers to z-scores.
+    **kwargs: dict
+        Keywords passed to mne.Epochs()
+
+    Returns
+    -------
+    Epochs:
+        An mne.Epochs() object with autorejection applied.
+    
+    """
+    def __init__(self, *args, baseline_trim=(-2, 2), **kwargs):
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
+        if 'preload' in kwargs and not kwargs['preload']:
+            raise ValueError('PupilEpochs must be preloaded')
+        kwargs['preload'] = True
         super().__init__(*args, **kwargs, picks='PupilSize')
+        if baseline_trim is not None and self.baseline is not None:
+            self._baseline_trim(baseline_trim)
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
         
     def average(self, *args, **kwargs):
@@ -26,6 +48,23 @@ class PupilEpochs(mne.Epochs):
         evoked = super().average(*args, **kwargs)
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
         return evoked
+    
+    def _baseline_trim(self, trim):
+        # Get the indices that correspond to baseline samples
+        start, end = self.baseline
+        t = self._raw_times
+        i = np.where((t >= start) & (t <= end))[0]
+        # An array of z-scored baseline pupil sizes per trial
+        baseline_sizes = np.nanmean(self._data[:, 0, i], axis=1)
+        baseline_sizes -= np.nanmean(baseline_sizes)
+        baseline_sizes /= np.nanstd(baseline_sizes)
+        # Indices of outliers
+        out_i = np.where((baseline_sizes < trim[0])
+                         | (baseline_sizes > trim[1]))
+        # Set all outliers to nan
+        self._data[out_i] = np.nan
+        logger.warning(
+            f'excluding {len(out_i[0])} trials based on baseline pupil size')
 
 
 @fnc.memoize(persistent=True)
@@ -92,6 +131,8 @@ def epochs_to_series(dm, epochs, baseline_trim=None):
     -------
     SeriesColumn
     """
+    warnings.warn('use datamatrix.convert.from_mne_epochs() instead',
+                  DeprecationWarning)
     # Different objects have different ways to access the data
     if hasattr(epochs, 'get_data') and callable(epochs.get_data):
         a = epochs.get_data()
@@ -141,6 +182,8 @@ def tfr_to_surface(dm, epochs):
     -------
     SeriesColumn
     """
+    warnings.warn('use datamatrix.convert.from_mne_tfr() instead',
+                  DeprecationWarning)
     try:
         from datamatrix._datamatrix._multidimensionalcolumn import \
             _MultiDimensionalColumn
