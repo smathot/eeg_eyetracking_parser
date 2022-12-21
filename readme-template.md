@@ -41,12 +41,13 @@ raw.plot()
 
 To avoid having to parse the data over and over again, `read_subject()` uses persistent [memoization](https://pydatamatrix.eu/memoization/), which is a way to store the return values of a function on disk and return them right away on subsequent calls. To clear the memoization cache, either call the `read_subject.clear()` function or remove the `.memoize` folder.
 
-
 Plot the voltage across four occipital electrodes locked to cue onset for three seconds. This is done separately for three different conditions, defined by `cue_eccentricity`. The function `eet.autoreject_epochs()` behaves similarly to `mne.Epochs()`, except that autorejection is applied and that, like `read_subject()`, it uses persistent memoization.
 
 ```python
+import numpy as np
 import mne
 from matplotlib import pyplot as plt
+from datamatrix import convert as cnv
 
 CUE_TRIGGER = 1
 CHANNELS = 'O1', 'O2', 'Oz', 'P3', 'P4'
@@ -54,33 +55,30 @@ CHANNELS = 'O1', 'O2', 'Oz', 'P3', 'P4'
 cue_epoch = eet.autoreject_epochs(raw, eet.epoch_trigger(events, CUE_TRIGGER),
                                   tmin=-.1, tmax=3, metadata=metadata,
                                   picks=CHANNELS)
-for ecc in ('near', 'medium', 'far'):
-    cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
-    plt.plot(cue_evoked.data.mean(axis=0), label=ecc)
-plt.legend()
 ```
 
-Plot pupil size during the same period. Because the regular `mne.Epoch()` object doesn't play nice with non-data channels, such as PupilSize, you need to use the `eet.PupilEpochs()` class instead (which is otherwise identical).
-
-```python
-cue_epoch = eet.PupilEpochs(raw, eet.epoch_trigger(events, CUE_TRIGGER), tmin=0,
-                            tmax=3, metadata=metadata, baseline=(0, .05))
-for ecc in ('near', 'medium', 'far'):
-    cue_evoked = cue_epoch[f'cue_eccentricity == "{ecc}"'].average()
-    plt.plot(cue_evoked.data.mean(axis=0))
-plt.legend()
-```
-
-You can also convert the `PupilEpochs` object to a `SeriesColumn` and plot it that way, for example using `time_series_test.plot()`.
+We can convert the metadata, which is a `DataFrame`, to a `DataMatrix`, and add `cue_epoch` as a multidimensional column
 
 ```python
 from datamatrix import convert as cnv
 import time_series_test as tst
 
 dm = cnv.from_pandas(metadata)
-dm.pupil = eet.epochs_to_series(dm, cue_epoch, baseline_trim=(-2, 2))
+dm.erp = cnv.from_mne_epochs(cue_epoch)  # rows x channel x time
+dm.mean_erp = dm.erp[:, ...]             # Average over channels: rows x time
+tst.plot(dm, dv='mean_erp', hue_factor='cue_eccentricity')
+```
+
+Because the regular `mne.Epoch()` object doesn't play nice with non-data channels, such as pupil size, you need to use the `eet.PupilEpochs()` class instead. This is class otherwise identical, except that it by default removes trials where baseline pupil size is more than 2 SD from the mean baseline pupil size.
+
+```python
+pupil_cue_epoch = eet.PupilEpochs(raw, eet.epoch_trigger(events, CUE_TRIGGER),
+                                  tmin=0, tmax=3, metadata=metadata,
+                                  baseline=(0, .05))
+dm.pupil = cnv.from_mne_epochs(pupil_cue_epoch, ch_avg=True)  # only 1 channel
 tst.plot(dm, dv='pupil', hue_factor='cue_eccentricity')
 ```
+
 
 ## Installation
 
@@ -90,6 +88,7 @@ pip install eeg_eyetracking_parser
 
 ## Dependencies
 
+- python-datamatrix >= 1.0
 - python-eyelinkparser
 - mne
 - autoreject
@@ -172,9 +171,6 @@ from npdoc_to_md import render_obj_docstring
 print(render_obj_docstring(
     'eeg_eyetracking_parser.autoreject_epochs._fnc',
     'autoreject_epochs'))
-print('\n\n')
-print(render_obj_docstring('eeg_eyetracking_parser.epochs_to_series',
-    'epochs_to_series'))
 print('\n\n')
 print(render_obj_docstring('eeg_eyetracking_parser.epoch_trigger',
     'epoch_trigger'))
