@@ -35,8 +35,10 @@ logger = logging.getLogger('eeg_eyetracking_parser')
 @fnc.memoize(persistent=True)
 def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
                    epochs_query='practice == "no"', epochs=4, window_size=200,
-                   window_stride=1, n_fold=4, crossdecode_factors=None,
-                   patch_data_func=None, read_subject_func=None, cuda=True):
+                   window_stride=1, n_fold=4,
+                   crossdecode_read_subject_kwargs=None,
+                   crossdecode_factors=None, patch_data_func=None,
+                   read_subject_func=None, cuda=True):
     """The main entry point for decoding a subject's data.
     
     Parameters
@@ -70,7 +72,10 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         cropped decoding.
     n_fold: int, optional
         The total number of splits (or folds). This should be at least 2.
-    crossdecode_factors: str or list of str, optional
+    crossdecode_read_subject_kwargs: dict or None, optional
+        When provided these read_subject_kwargs are passed to read_subject_func
+        for reading the to-be-decoded test dataset.
+    crossdecode_factors: str or list of str or None, optional
         A factor or list of factors that should be decoded during tester. If
         provided, the classifier is trained using the factors specified in
         `factors` and tested using the factors specified in
@@ -111,11 +116,20 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         read_subject_kwargs, factors, epochs_kwargs, trigger, epochs_query,
         window_size=window_size, window_stride=window_stride,
         patch_data_func=patch_data_func, read_subject_func=read_subject_func)
-    if crossdecode_factors is not None:
+    if crossdecode_factors is not None or \
+            crossdecode_read_subject_kwargs is not None:
+        if crossdecode_factors is None:
+            crossdecode_factors = factors
+        else:
+            logger.info('crossdecoding different factors')
+        if crossdecode_read_subject_kwargs is None:
+            crossdecode_read_subject_kwargs = read_subject_kwargs
+        else:
+            logger.info('crossdecoding different subject')
         cd_dataset, labels, metadata = read_decode_dataset(
-            read_subject_kwargs, crossdecode_factors, epochs_kwargs, trigger,
-            epochs_query, window_size=window_size, window_stride=window_stride,
-            patch_data_func=patch_data_func,
+            crossdecode_read_subject_kwargs, crossdecode_factors,
+            epochs_kwargs, trigger, epochs_query, window_size=window_size,
+            window_stride=window_stride, patch_data_func=patch_data_func,
             read_subject_func=read_subject_func)
     n_conditions = len(labels)
     logger.info(f'decoding {n_conditions} labels')

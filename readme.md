@@ -1,6 +1,6 @@
 # Python parser for combined EEG and eye-tracking data 
 
-Copyright (2022) Hermine Berberyan, Wouter Kruijne, Sebastiaan Mathôt, Ana Vilotijević
+Copyright (2022-2023) Hermine Berberyan, Wouter Kruijne, Sebastiaan Mathôt, Ana Vilotijević
 
 
 [![Publish to PyPi](https://github.com/smathot/eeg_eyetracking_parser/actions/workflows/publish-package.yaml/badge.svg)](https://github.com/smathot/eeg_eyetracking_parser/actions/workflows/publish-package.yaml)
@@ -409,7 +409,7 @@ values between 128 and 255 (inclusive).
 
 
 
-## <span style="color:purple">braindecode\_utils.decode\_subject</span>_(read\_subject\_kwargs, factors, epochs\_kwargs, trigger, epochs\_query='practice == "no"', epochs=4, window\_size=200, window\_stride=1, n\_fold=4, crossdecode\_factors=None, patch\_data\_func=None, read\_subject\_func=None, cuda=True)_
+## <span style="color:purple">braindecode\_utils.decode\_subject</span>_(read\_subject\_kwargs, factors, epochs\_kwargs, trigger, epochs\_query='practice == "no"', epochs=4, window\_size=200, window\_stride=1, n\_fold=4, crossdecode\_read\_subject\_kwargs=None, crossdecode\_factors=None, patch\_data\_func=None, read\_subject\_func=None, cuda=True)_
 
 The main entry point for decoding a subject's data.
 
@@ -462,7 +462,12 @@ The main entry point for decoding a subject's data.
 
   The total number of splits (or folds). This should be at least 2.
 
-* **crossdecode\_factors: str or list of str, optional**
+* **crossdecode\_read\_subject\_kwargs: dict or None, optional**
+
+  When provided these read_subject_kwargs are passed to read_subject_func
+  for reading the to-be-decoded test dataset.
+
+* **crossdecode\_factors: str or list of str or None, optional**
 
   A factor or list of factors that should be decoded during tester. If
   provided, the classifier is trained using the factors specified in
