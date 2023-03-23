@@ -38,7 +38,8 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
                    window_stride=1, n_fold=4,
                    crossdecode_read_subject_kwargs=None,
                    crossdecode_factors=None, patch_data_func=None,
-                   read_subject_func=None, cuda=True):
+                   read_subject_func=None, cuda=True,
+                   balance=True):
     """The main entry point for decoding a subject's data.
     
     Parameters
@@ -94,6 +95,10 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
     cuda: bool, optional
         If True, cuda will be used for GPU processing if it is available. If
         False, cuda won't be used, not even when it is available.
+    balance: bool, optional
+        Makes sure that a dataset contains an equal number of observations for
+        each label by randomly duplicating observations from labels that have too
+        few observations. This modifies the dataset in-place.
 
     Returns
     -------
@@ -115,7 +120,8 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
     dataset, labels, metadata = read_decode_dataset(
         read_subject_kwargs, factors, epochs_kwargs, trigger, epochs_query,
         window_size=window_size, window_stride=window_stride,
-        patch_data_func=patch_data_func, read_subject_func=read_subject_func)
+        patch_data_func=patch_data_func, read_subject_func=read_subject_func,
+        balance=balance)
     if crossdecode_factors is not None or \
             crossdecode_read_subject_kwargs is not None:
         if crossdecode_factors is None:
@@ -130,7 +136,7 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
             crossdecode_read_subject_kwargs, crossdecode_factors,
             epochs_kwargs, trigger, epochs_query, window_size=window_size,
             window_stride=window_stride, patch_data_func=patch_data_func,
-            read_subject_func=read_subject_func)
+            read_subject_func=read_subject_func, balance=balance)
     n_conditions = len(labels)
     logger.info(f'decoding {n_conditions} labels')
     predictions = DataMatrix(length=0)
@@ -148,7 +154,8 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         clf = train(train_data, test_data, epochs=epochs, cuda=cuda)
         # We can unbalance the data after training to save time and to make the
         # cell counts match again
-        _unbalance_dataset(test_data)
+        if balance:
+            _unbalance_dataset(test_data)
         # We want to know which trial was predicted to have which label. For
         # that reason, we create a datamatrix with true and predicted labels.
         # These are not in the original order, so we also store timestamps
@@ -186,7 +193,8 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
 def read_decode_dataset(read_subject_kwargs, factors, epochs_kwargs, trigger,
                         epochs_query='practice == "no"', lesion=None,
                         window_size=200, window_stride=1,
-                        patch_data_func=None, read_subject_func=None):
+                        patch_data_func=None, read_subject_func=None, 
+                        balance=True):
     """Reads a dataset and converts it to a format that is suitable for
     braindecode.
     """
@@ -211,7 +219,7 @@ def read_decode_dataset(read_subject_kwargs, factors, epochs_kwargs, trigger,
         epochs._data[:, epochs.ch_names.index(lesion)] = 0
     dataset, labels = _build_dataset(
         epochs, metadata, factors, window_size_samples=window_size,
-        window_stride_samples=window_stride)
+        window_stride_samples=window_stride, balance=balance)
     return dataset, labels, metadata
 
 
@@ -433,7 +441,8 @@ def _split_dataset(dataset, n_fold=4, fold=0):
 
 
 def _balance_dataset(dataset):
-    """Makes sure that a dataset contains an equal number of observations for
+    """
+    Makes sure that a dataset contains an equal number of observations for
     each label by randomly duplicating observations from labels that have too
     few observations. This modifies the dataset in-place.
     
@@ -499,7 +508,7 @@ def _unbalance_dataset(dataset):
 
 
 def _build_dataset(epochs, metadata, factors, window_size_samples,
-                  window_stride_samples):
+                  window_stride_samples, balance=True):
     """Creates a dataset that is suitable for braindecode from an Epochs
     object. This indirectly implements 'cropped decoding' as explained on
     the braindecode website and accompanying paper.
@@ -533,5 +542,6 @@ def _build_dataset(epochs, metadata, factors, window_size_samples,
         window_stride_samples=window_stride_samples,
         drop_last_window=False
     )
-    _balance_dataset(dataset)
+    if balance:
+        _balance_dataset(dataset)
     return dataset, labels
