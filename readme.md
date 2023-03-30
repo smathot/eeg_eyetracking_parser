@@ -409,7 +409,7 @@ values between 128 and 255 (inclusive).
 
 
 
-## <span style="color:purple">braindecode\_utils.decode\_subject</span>_(read\_subject\_kwargs, factors, epochs\_kwargs, trigger, epochs\_query='practice == "no"', epochs=4, window\_size=200, window\_stride=1, n\_fold=4, crossdecode\_read\_subject\_kwargs=None, crossdecode\_factors=None, patch\_data\_func=None, read\_subject\_func=None, cuda=True)_
+## <span style="color:purple">braindecode\_utils.decode\_subject</span>_(read\_subject\_kwargs, factors, epochs\_kwargs, trigger, epochs\_query='practice == "no"', epochs=4, window\_size=200, window\_stride=1, n\_fold=4, crossdecode\_read\_subject\_kwargs=None, crossdecode\_factors=None, patch\_data\_func=None, read\_subject\_func=None, cuda=True, balance=True)_
 
 The main entry point for decoding a subject's data.
 
@@ -493,6 +493,12 @@ The main entry point for decoding a subject's data.
 
   If True, cuda will be used for GPU processing if it is available. If
   False, cuda won't be used, not even when it is available.
+
+* **balance: bool, optional**
+
+  Makes sure that a dataset contains an equal number of observations for
+  each label by randomly duplicating observations from labels that have 
+  too few observations.
 
 ### Returns
 
