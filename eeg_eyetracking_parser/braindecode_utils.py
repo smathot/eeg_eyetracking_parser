@@ -38,8 +38,7 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
                    window_stride=1, n_fold=4,
                    crossdecode_read_subject_kwargs=None,
                    crossdecode_factors=None, patch_data_func=None,
-                   read_subject_func=None, cuda=True,
-                   balance=True):
+                   read_subject_func=None, cuda=True, balance=True):
     """The main entry point for decoding a subject's data.
     
     Parameters
@@ -97,8 +96,8 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         False, cuda won't be used, not even when it is available.
     balance: bool, optional
         Makes sure that a dataset contains an equal number of observations for
-        each label by randomly duplicating observations from labels that have too
-        few observations. This modifies the dataset in-place.
+        each label by randomly duplicating observations from labels that have 
+        too few observations.
 
     Returns
     -------
