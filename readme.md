@@ -88,8 +88,8 @@ pip install eeg_eyetracking_parser
 
 ## Dependencies
 
-- python-datamatrix >= 1.0
-- python-eyelinkparser
+- datamatrix >= 1.0
+- eyelinkparser
 - mne
 - autoreject
 - h5io
