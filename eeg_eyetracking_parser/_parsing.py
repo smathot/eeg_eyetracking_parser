@@ -1,4 +1,5 @@
 import logging
+import itertools
 from pathlib import Path
 import numpy as np
 import mne
@@ -296,9 +297,20 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     # programmed). Therefore, we use the first epoch trigger to determine the
     # offset of the eye-movement data relative to the EEG data. We add this to
     # both the eye-tracking dms as the `eye_offset` column.
+    # First determine which phases exist in the data. We do this once for
+    # performance
+    phases = []
+    for phase_nr in itertools.count(1):
+        if f't_onset_{phase_nr}' not in dm:
+            break
+        phases.append(phase_nr)
+    logger.info(f'detected {len(phases)} phases in eye-movement data')
     for i, (row, bigrow) in enumerate(zip(dm, bigdm)):
         eye_t0 = bigrow.ttrace_trial[0]
-        eye_t1 = row.t_onset_1 - eye_t0
+        # Get the onset of the first phase. This may be different on each trial
+        # for example if the order of the stimuli varies from trial to trial.
+        t_onset = min([row[f't_onset_{phase_nr}'] for phase_nr in phases])
+        eye_t1 = t_onset - eye_t0
         triggers = events[0]
         trigger_index = np.where(triggers[:, 2] >= 128)[0][i]
         eeg_t0, eeg_t1 = triggers[trigger_index:trigger_index + 2][:, 0]
