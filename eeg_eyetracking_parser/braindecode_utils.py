@@ -116,6 +116,9 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         raise ValueError('epochs should >= 2')
     if not isinstance(n_fold, int) or epochs < 2:
         raise ValueError('n_fold should >= 2')
+    if not epochs_kwargs.get('preload', True):
+        raise ValueError('Epochs need to be preloaded')
+    epochs_kwargs['preload'] = True
     dataset, labels, metadata = read_decode_dataset(
         read_subject_kwargs, factors, epochs_kwargs, trigger, epochs_query,
         window_size=window_size, window_stride=window_stride,
