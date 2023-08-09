@@ -119,8 +119,7 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
     dataset, labels, metadata = read_decode_dataset(
         read_subject_kwargs, factors, epochs_kwargs, trigger, epochs_query,
         window_size=window_size, window_stride=window_stride,
-        patch_data_func=patch_data_func, read_subject_func=read_subject_func,
-        balance=balance)
+        patch_data_func=patch_data_func, read_subject_func=read_subject_func)
     if crossdecode_factors is not None or \
             crossdecode_read_subject_kwargs is not None:
         if crossdecode_factors is None:
@@ -135,13 +134,16 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
             crossdecode_read_subject_kwargs, crossdecode_factors,
             epochs_kwargs, trigger, epochs_query, window_size=window_size,
             window_stride=window_stride, patch_data_func=patch_data_func,
-            read_subject_func=read_subject_func, balance=balance)
+            read_subject_func=read_subject_func)
     n_conditions = len(labels)
     logger.info(f'decoding {n_conditions} labels')
     predictions = DataMatrix(length=0)
     for fold in range(n_fold):
         train_data, test_data = _split_dataset(dataset, fold=fold,
                                                n_fold=n_fold)
+        if balance:
+            logger.info('balancing training data')
+            _balance_dataset(train_data)
         if crossdecode_factors is not None:
             _, test_data = _split_dataset(cd_dataset, fold=fold, n_fold=n_fold)
         n_train_conditions = len(set(d.y[0] for d in train_data.datasets))
@@ -151,10 +153,6 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
         if n_test_conditions != n_conditions:
             raise ValueError('Some labels are missing from testing set')
         clf = train(train_data, test_data, epochs=epochs, cuda=cuda)
-        # We can unbalance the data after training to save time and to make the
-        # cell counts match again
-        if balance:
-            _unbalance_dataset(test_data)
         # We want to know which trial was predicted to have which label. For
         # that reason, we create a datamatrix with true and predicted labels.
         # These are not in the original order, so we also store timestamps
@@ -192,8 +190,7 @@ def decode_subject(read_subject_kwargs, factors, epochs_kwargs, trigger,
 def read_decode_dataset(read_subject_kwargs, factors, epochs_kwargs, trigger,
                         epochs_query='practice == "no"', lesion=None,
                         window_size=200, window_stride=1,
-                        patch_data_func=None, read_subject_func=None, 
-                        balance=True):
+                        patch_data_func=None, read_subject_func=None):
     """Reads a dataset and converts it to a format that is suitable for
     braindecode.
     """
@@ -218,7 +215,7 @@ def read_decode_dataset(read_subject_kwargs, factors, epochs_kwargs, trigger,
         epochs._data[:, epochs.ch_names.index(lesion)] = 0
     dataset, labels = _build_dataset(
         epochs, metadata, factors, window_size_samples=window_size,
-        window_stride_samples=window_stride, balance=balance)
+        window_stride_samples=window_stride)
     return dataset, labels, metadata
 
 
@@ -507,7 +504,7 @@ def _unbalance_dataset(dataset):
 
 
 def _build_dataset(epochs, metadata, factors, window_size_samples,
-                  window_stride_samples, balance=True):
+                  window_stride_samples):
     """Creates a dataset that is suitable for braindecode from an Epochs
     object. This indirectly implements 'cropped decoding' as explained on
     the braindecode website and accompanying paper.
@@ -541,6 +538,4 @@ def _build_dataset(epochs, metadata, factors, window_size_samples,
         window_stride_samples=window_stride_samples,
         drop_last_window=False
     )
-    if balance:
-        _balance_dataset(dataset)
     return dataset, labels
