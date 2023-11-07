@@ -442,6 +442,6 @@ def _read_eye_data(eye_path, metadata, kwargs):
     if not eye_path.exists():
         logger.info('no eye data detected')
         return None
-    logger.info('loading eye data from {eye_path}')
+    logger.info(f'loading eye data from {eye_path}')
     return parse(folder=eye_path, maxtracelen=1, pupil_size=False,
                  gaze_pos=False)
