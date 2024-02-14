@@ -330,6 +330,11 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
         if len(raw) <= timestamp + trialdepth:
             logger.warning('eeg recording ended before last eye tracking trial')
             continue
+        if np.isnan(row.eye_offset):
+            logger.warning('eye_offset is nan. This likely indicates a '
+                           'recording artifact either in the EEG or the eye '
+                           'tracker')
+            continue            
         data[0, timestamp: timestamp + trialdepth] = row.xtrace_trial
         data[1, timestamp: timestamp + trialdepth] = row.ytrace_trial
         data[2, timestamp: timestamp + trialdepth] = row.ptrace_trial
