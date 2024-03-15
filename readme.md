@@ -219,7 +219,7 @@ Epoch triggers have values between 1 and 127 (inclusive).
 
 
 
-## <span style="color:purple">PupilEpochs</span>_(\*args, baseline\_trim=(-2, 2), \*\*kwargs)_
+## <span style="color:purple">PupilEpochs</span>_(\*args, baseline\_trim=(-2, 2), channel='PupilSize', \*\*kwargs)_
 
 An Epochs class for the PupilSize channel. This allows baseline
 correction to be applied to pupil size, even though this channel is not a
@@ -236,6 +236,10 @@ pupil analysis (but not typically done for eeg).
 * **baseline\_trim: tuple of int, optional**
 
   The range of acceptable baseline values. This refers to z-scores.
+
+* **channel: str, optional**
+
+  The channel name that contains pupil-size data
 
 * **\*\*kwargs: dict**
 
