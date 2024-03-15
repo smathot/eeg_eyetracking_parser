@@ -24,6 +24,8 @@ class PupilEpochs(mne.Epochs):
         Arguments passed to mne.Epochs()
     baseline_trim: tuple of int, optional
         The range of acceptable baseline values. This refers to z-scores.
+    channel: str, optional
+        The channel name that contains pupil-size data
     **kwargs: dict
         Keywords passed to mne.Epochs()
 
@@ -33,12 +35,13 @@ class PupilEpochs(mne.Epochs):
         An mne.Epochs() object with autorejection applied.
     
     """
-    def __init__(self, *args, baseline_trim=(-2, 2), **kwargs):
+    def __init__(self, *args, baseline_trim=(-2, 2), channel='PupilSize',
+                 **kwargs):
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
         if 'preload' in kwargs and not kwargs['preload']:
             raise ValueError('PupilEpochs must be preloaded')
         kwargs['preload'] = True
-        super().__init__(*args, **kwargs, picks='PupilSize')
+        super().__init__(*args, **kwargs, picks=channel)
         if baseline_trim is not None and self.baseline is not None:
             self._baseline_trim(baseline_trim)
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = False
