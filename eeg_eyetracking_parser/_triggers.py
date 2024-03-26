@@ -68,4 +68,15 @@ def _validate_events(events):
     codes = events[:, 2]
     if np.any((codes < 1) | (codes > 255)):
         raise ValueError('trigger codes should be values between 1 and 255')
+    # Check for duplicate triggers within trials
+    trialid = -1
+    triggers = []
+    for code in codes:
+        if code >= 128:
+            trialid += 1
+            triggers = []
+        if code in triggers:
+            raise ValueError(
+                f'duplicate trigger {code} in trial {trialid}, label {hex(255 - 128 - trialid % 128)}')
+        triggers.append(code)
     return events
