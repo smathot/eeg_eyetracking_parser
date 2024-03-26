@@ -119,6 +119,8 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     else:
         subject_path = Path(folder) / Path('sub-{}'.format(subject_nr))
     logger.info(f'reading subject data from {subject_path}')
+    for vmrk in (subject_path / 'eeg').glob('*.vmrk'):
+        _validate_vmrk(vmrk)
     raw, events = _read_eeg_data(subject_path / Path('eeg'), trigger_parser,
                                  eeg_margin)
     metadata = _read_beh_data(subject_path / Path('beh'))
@@ -450,3 +452,27 @@ def _read_eye_data(eye_path, metadata, kwargs):
     logger.info(f'loading eye data from {eye_path}')
     return parse(folder=eye_path, maxtracelen=1, pupil_size=False,
                  gaze_pos=False)
+
+
+def _validate_vmrk(vmrk):
+    """Checks .vmrk files for possibly invalid triggers (which follows another
+    trigger too rapidly) and invalid lines.
+    """
+    logger.info(f'validating {vmrk}')
+    content = vmrk.read_text()
+    t0 = None
+    for line_nr, line in enumerate(content.splitlines()):
+        if not line.startswith('Mk'):
+            continue
+        line = line.split(',')
+        if len(line) != 5:
+            raise ValueError(f'{vmrk}: line {line_nr} is invalid')
+        if not line[1].startswith('OVTK_StimulationId_Label_'):
+            continue
+        t = int(line[2])
+        if t0 is not None:
+            dt = t - t0
+            if dt < 2:
+                logger.warn(
+                    f'{vmrk}: possibly invalid trigger on line {line_nr}')
+        t0 = t
