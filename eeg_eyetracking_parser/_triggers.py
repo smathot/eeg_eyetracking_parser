@@ -1,8 +1,10 @@
 import numpy as np
+import logging
+
+logger = logging.getLogger('eeg_eyetracking_parser')
 
 TRIAL_TRIGGERS = list(range(128, 256))
 TRIGGER_ANNOTATION_PREFIX = 'Stimulus/OVTK_StimulationId_Label_'
-ZERO_TRIGGER_ANNOTATION = 'Stimulus/OVTK_StimulationId_Label_FF'
 
 
 def epoch_trigger(events, trigger):
@@ -51,8 +53,6 @@ def _parse_triggers(label):
     """An internal function that converts labels as stored in our data."""
     if not label.startswith(TRIGGER_ANNOTATION_PREFIX):
         return None
-    if label == ZERO_TRIGGER_ANNOTATION:
-        return None
     return 255 - int(label[-2:], 16)
     
     
@@ -65,6 +65,17 @@ def _validate_events(events):
         events = events[0]
     if not isinstance(events, np.ndarray):
         raise TypeError('events should be a numpy array')
+    # Remove ghost triggers
+    valid_events = []
+    for i in range(len(events) - 1):
+        dt = events[i + 1, 0] - events[i, 0]
+        if dt == 1:
+            logger.warning(f'ignoring ghost trigger: {events[i]}')
+            continue
+        valid_events.append(events[i])
+    events = np.array(valid_events)
+    # Keep only non-zero triggers
+    events = events[events[:,2] != 0]
     codes = events[:, 2]
     if np.any((codes < 1) | (codes > 255)):
         raise ValueError('trigger codes should be values between 1 and 255')
@@ -79,4 +90,4 @@ def _validate_events(events):
             raise ValueError(
                 f'duplicate trigger {code} in trial {trialid}, label {hex(255 - 128 - trialid % 128)}')
         triggers.append(code)
-    return events
+    return events       
