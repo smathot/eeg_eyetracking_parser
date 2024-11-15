@@ -258,7 +258,8 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     if '' in dm.t_onset_1:
         valid_rows = dm[dm[dm.t_onset_1] != '']
         logger.warning(
-            f'ignoring {len(dm) - len(valid_rows)} rows of eye-tracking data without epoch 1')
+            f'ignoring {len(dm) - len(valid_rows)} rows of eye-tracking data '
+            f'without epoch 1')
         bigdm = bigdm[valid_rows]
         dm = dm[valid_rows]
     # Check for missing EEG triggers. If the first trigger is missing, a
@@ -266,8 +267,13 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     # removed also from dm and bigdm.
     triggers = trial_trigger(events)[:, 2]
     if triggers[0] != 128:
-        raise ValueError(
-            f'The first trial trigger is {triggers[0]}, should be 128')
+        n_missing_trials = triggers[0] - 128
+        logger.warning(
+            f'The first trial trigger is {triggers[0]}, should be 128. '
+            f'Skipping {n_missing_trials} first trials of eye-tracking data '
+            f'to maintain alignment.')
+        dm = dm[n_missing_trials:]
+        bigdm = bigdm[n_missing_trials:]
     rows = list(range(len(dm)))
     for i, (tr1, tr2) in enumerate(zip(triggers[:-1], triggers[1:])):
         if tr2 - tr1 not in (1, -127):
@@ -282,7 +288,9 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     missing = len(dm) - len(triggers)
     if missing > 0:
         logger.warning(
-            f'final {missing} triggers missing from recording, truncating eye data with one extra trial because the last trial may be incomplete too')
+            f'final {missing} triggers missing from recording, truncating eye '
+            f'data with one extra trial because the last trial may be '
+            f'incomplete too')
         dm = dm[:-missing - 1]
         bigdm = bigdm[:-missing - 1]
         last_trigger_index = np.where(events[0][:, 2] >= 128)[0][-1]
@@ -421,7 +429,7 @@ def _read_eeg_data(eeg_path, trigger_parser, margin):
         logger.info(f'trimming eeg to 0 - {end} s')
         raw.crop(0, end)
     logger.info('validating events')
-    _validate_events(events)
+    events = _validate_events(events[0]), events[1]
     logger.info('creating annotations from events')
     raw.set_annotations(
         mne.annotations_from_events(

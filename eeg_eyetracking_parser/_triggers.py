@@ -70,7 +70,8 @@ def _validate_events(events):
     for i in range(len(events) - 1):
         dt = events[i + 1, 0] - events[i, 0]
         if dt == 1:
-            logger.warning(f'ignoring ghost trigger: {events[i]}')
+            logger.warning(
+                f'ignoring ghost trigger: {events[i]} before {events[i + 1]}')
             continue
         valid_events.append(events[i])
     events = np.array(valid_events)
@@ -81,13 +82,27 @@ def _validate_events(events):
         raise ValueError('trigger codes should be values between 1 and 255')
     # Check for duplicate triggers within trials
     trialid = -1
-    triggers = []
+    triggers_in_trial = []
+    select_triggers = []
     for code in codes:
+        # Detect trial triggers and always keep them
         if code >= 128:
             trialid += 1
-            triggers = []
-        if code in triggers:
-            raise ValueError(
+            triggers_in_trial = []
+            select_triggers.append(True)
+            continue
+        # Skip triggers that precede a trial onset
+        if trialid == -1:
+            logger.warning(f'trigger {code} precedes first trial')
+            select_triggers.append(False)
+            continue
+        # Skip duplicate triggers within a trial
+        if code in triggers_in_trial:
+            logger.warning(
                 f'duplicate trigger {code} in trial {trialid}, label {hex(255 - 128 - trialid % 128)}')
-        triggers.append(code)
-    return events       
+            select_triggers.append(False)
+        else:
+            select_triggers.append(True)
+        triggers_in_trial.append(code)
+    events = events[select_triggers]
+    return events
