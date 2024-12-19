@@ -288,13 +288,9 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     missing = len(dm) - len(triggers)
     if missing > 0:
         logger.warning(
-            f'final {missing} triggers missing from recording, truncating eye '
-            f'data with one extra trial because the last trial may be '
-            f'incomplete too')
-        dm = dm[:-missing - 1]
-        bigdm = bigdm[:-missing - 1]
-        last_trigger_index = np.where(events[0][:, 2] >= 128)[0][-1]
-        events = events[0][:last_trigger_index - 1], events[1]
+            f'final {missing} triggers missing, truncating eye data')
+        dm = dm[:-missing]
+        bigdm = bigdm[:-missing]
     # Now double-check that EEG and eye-tracking data match in length
     n_trials_eeg = sum(events[0][:, 2] >= 128)
     assert(n_trials_eeg == len(dm))
@@ -429,7 +425,7 @@ def _read_eeg_data(eeg_path, trigger_parser, margin):
         logger.info(f'trimming eeg to 0 - {end} s')
         raw.crop(0, end)
     logger.info('validating events')
-    events = _validate_events(events[0]), events[1]
+    events = _validate_events(events[0], repair=True), events[1]
     logger.info('creating annotations from events')
     raw.set_annotations(
         mne.annotations_from_events(

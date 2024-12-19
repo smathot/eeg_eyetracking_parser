@@ -56,7 +56,7 @@ def _parse_triggers(label):
     return 255 - int(label[-2:], 16)
     
     
-def _validate_events(events):
+def _validate_events(events, repair=False):
     """Checks whether the events are in the correct format."""
     if isinstance(events, tuple):
         if len(events) != 2:
@@ -65,6 +65,8 @@ def _validate_events(events):
         events = events[0]
     if not isinstance(events, np.ndarray):
         raise TypeError('events should be a numpy array')
+    if not repair:
+        return events
     # Remove ghost triggers
     valid_events = []
     for i in range(len(events) - 1):
@@ -105,4 +107,24 @@ def _validate_events(events):
             select_triggers.append(True)
         triggers_in_trial.append(code)
     events = events[select_triggers]
+    # If the recording is aborted, it is possible that some event triggers are
+    # missing for the last trial. If so, then we exclude the last trial
+    # altogether
+    event_codes = np.unique(events[:, 2][events[:, 2] < 128])
+    n_trials = sum(events[:, 2] >= 128)
+    logger.info(f'found event triggers: {event_codes}')
+    trim_last_trial = False
+    for code in event_codes:
+        n_events = sum(events[:, 2] == code)
+        if n_events == n_trials - 1:
+            logger.warning(
+                f'last occurence of event trigger {code} is missing')
+            trim_last_trial = True
+        elif n_events < n_trials - 1:
+            logger.warning(f'not enough occurences of event trigger {code}')
+    if trim_last_trial:
+        logger.warning(
+            'trimming last trial to ensure equal number of event triggers')
+        last_trigger_index = np.where(events[:, 2] >= 128)[0][-1]
+        events = events[:last_trigger_index - 1]
     return events
