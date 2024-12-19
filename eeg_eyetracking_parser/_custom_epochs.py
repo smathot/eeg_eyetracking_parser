@@ -37,6 +37,10 @@ class PupilEpochs(mne.Epochs):
     """
     def __init__(self, *args, baseline_trim=(-2, 2), channel='PupilSize',
                  **kwargs):
+        # New versions of MNE don't have this property anymore, and just allow
+        # you to pick the pupil trace
+        if not hasattr(mne.io.pick, '_PICK_TYPES_DATA_DICT'):
+            mne.io.pick._PICK_TYPES_DATA_DICT = {'misc': False}
         mne.io.pick._PICK_TYPES_DATA_DICT['misc'] = True
         if 'preload' in kwargs and not kwargs['preload']:
             raise ValueError('PupilEpochs must be preloaded')
