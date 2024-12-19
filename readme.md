@@ -1,6 +1,6 @@
 # Python parser for combined EEG and eye-tracking data 
 
-Copyright (2022-2024) Hermine Berberyan, Wouter Kruijne, Sebastiaan Mathôt, Ana Vilotijević
+Copyright (2022-2025) Hermine Berberyan, Wouter Kruijne, Sebastiaan Mathôt, Ana Vilotijević
 
 
 [![Publish to PyPi](https://github.com/smathot/eeg_eyetracking_parser/actions/workflows/publish-package.yaml/badge.svg)](https://github.com/smathot/eeg_eyetracking_parser/actions/workflows/publish-package.yaml)
