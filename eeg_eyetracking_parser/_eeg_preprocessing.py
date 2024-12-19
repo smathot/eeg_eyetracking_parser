@@ -266,10 +266,10 @@ def autodetect_bad_channels(raw, events, plot=False, preprocessing_path=None,
     trial_events = trial_trigger(events)
     median_duration = np.median(
         trial_events[1:, 0] - trial_events[:-1, 0]) * 1.5
-    cue_epoch = mne.Epochs(raw_bads, trial_events, tmin=0, baseline=None,
-                           tmax=median_duration / 1000, preload=True)
+    epoch = mne.Epochs(raw_bads, trial_events, tmin=0, baseline=None,
+                       tmax=median_duration / 1000, preload=True)
     ransac = ar.Ransac()
-    ransac = ransac.fit(cue_epoch)
+    ransac = ransac.fit(epoch)
     raw.info['bads'] = ransac.bad_chs_
     if plot or preprocessing_path is not None:
         bad_dir = os.path.join(preprocessing_path, "Bad_channels")
