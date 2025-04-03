@@ -288,9 +288,24 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     missing = len(dm) - len(triggers)
     if missing > 0:
         logger.warning(
-            f'final {missing} triggers missing, truncating eye data')
+            f'final {missing} triggers missing from EEG data, truncating eye data')
         dm = dm[:-missing]
         bigdm = bigdm[:-missing]
+    elif missing < 0:
+        # If there are trials missing from the eye tracking data, we truncate
+        # the triggers.
+        logger.warning(
+            f'final {-missing} trials missing from eye-tracking data, truncating EEG data')
+        # We get the index of the first trigger that should be truncated because
+        # if falls outside the range of the eye-tracking data.
+        trialid = -1
+        for trigger_index, trigger in enumerate(events[0][: ,2]):
+            if trigger >= 128:
+                trialid += 1
+                if trialid == len(dm):
+                    break
+        # Strip the extranous triggers from the events object.
+        events = events[0][:trigger_index], events[1]
     # Now double-check that EEG and eye-tracking data match in length
     n_trials_eeg = sum(events[0][:, 2] >= 128)
     assert(n_trials_eeg == len(dm))
