@@ -127,10 +127,10 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
     eye_path = subject_path / Path('eyetracking')
     dm = _read_eye_data(eye_path, metadata, eye_kwargs)
     if dm is not None and raw is not None:
-        dm = _merge_eye_and_eeg_data(eye_path, raw, events, dm, min_sacc_dur,
-                                     min_sacc_size, min_blink_dur,
-                                     blink_annotation, saccade_annotation,
-                                     eye_kwargs)
+        dm, events = _merge_eye_and_eeg_data(eye_path, raw, events, dm, 
+                                             min_sacc_dur, min_sacc_size,
+                                             min_blink_dur, blink_annotation,
+                                             saccade_annotation, eye_kwargs)
     if metadata is None and dm is not None:
         metadata = _dm_to_metadata(dm)
     if eeg_preprocessing:
@@ -147,7 +147,7 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
             auto_select_ica_kwargs['preprocessing_path'] = preprocessing_path
             annotate_emg_kwargs['preprocessing_path'] = preprocessing_path
         if plot_preprocessing:
-            logger.info(f'creating plots during preprocessing')
+            logger.info('creating plots during preprocessing')
             set_montage_kwargs['plot'] = True
             band_pass_filter_kwargs['plot'] = True
             autodetect_bad_channels_kwargs['plot'] = True
@@ -240,7 +240,7 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     """Add the eye data as channels to the EEG data. In addition, add blinks
     and saccades as annotations.
     """
-    logger.info(f'merging eye-tracking and eeg data')
+    logger.info('merging eye-tracking and eeg data')
     # First read the eye-tracking data again, this time without downsampling
     # and without splitting the data into separate epochs. We do this, so that
     # we can merge this big dataset as channels into the EEG data.
@@ -310,7 +310,7 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
     n_trials_eeg = sum(events[0][:, 2] >= 128)
     assert(n_trials_eeg == len(dm))
     assert(n_trials_eeg == len(bigdm))
-    logger.info(f'eeg data and metata have matching length')
+    logger.info('eeg data and metata have matching length')
     # The start of the trial as recorded by the EEG start-trial marker and the
     # eyelink start_trial message are usually a little offset. However, the
     # EEG epoch triggers should *not* be offset relative to the eye-tracking
@@ -415,7 +415,7 @@ def _merge_eye_and_eeg_data(eye_path, raw, events,
         duration=duration,
         description=description)
     raw.set_annotations(raw.annotations + annotations)
-    return dm
+    return dm, events
 
 
 def _read_eeg_data(eeg_path, trigger_parser, margin):
