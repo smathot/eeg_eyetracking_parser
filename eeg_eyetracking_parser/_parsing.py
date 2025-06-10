@@ -131,7 +131,6 @@ def read_subject(subject_nr, folder='data/', trigger_parser=None,
                                              min_sacc_dur, min_sacc_size,
                                              min_blink_dur, blink_annotation,
                                              saccade_annotation, eye_kwargs)
-    if metadata is None and dm is not None:
         metadata = _dm_to_metadata(dm)
     if eeg_preprocessing:
         # Preprocessing output can be saved for visual inspection. By default
